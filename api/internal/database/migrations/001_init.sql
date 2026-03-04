@@ -624,6 +624,8 @@ CREATE TABLE IF NOT EXISTS public.global_settings (
     proxy_busy_buffers_size character varying(20) DEFAULT '128k'::character varying NOT NULL,
     proxy_max_temp_file_size character varying(20) DEFAULT '1024m'::character varying NOT NULL,
     proxy_temp_file_write_size character varying(20) DEFAULT '64k'::character varying NOT NULL,
+    proxy_buffering character varying(10) DEFAULT ''::character varying,
+    proxy_request_buffering character varying(10) DEFAULT ''::character varying,
     open_file_cache_enabled boolean DEFAULT true NOT NULL,
     open_file_cache_max integer DEFAULT 10000 NOT NULL,
     open_file_cache_inactive character varying(20) DEFAULT '60s'::character varying NOT NULL,
@@ -2102,6 +2104,10 @@ ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS is_favorite boolean DEFA
 -- Add column comments
 COMMENT ON COLUMN public.proxy_hosts.cache_static_only IS 'Only cache static assets (js, css, images, fonts) - excludes API paths';
 COMMENT ON COLUMN public.proxy_hosts.cache_ttl IS 'Cache duration for static assets (e.g., 1h, 7d, 30m)';
+
+-- global_settings table upgrades (v2.4.0+)
+ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS proxy_buffering character varying(10) DEFAULT '';
+ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS proxy_request_buffering character varying(10) DEFAULT '';
 
 -- ============================================================================
 -- BUG FIXES (v1.3.9+)

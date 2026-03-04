@@ -205,7 +205,7 @@ export function PerformanceTabContent({ formData, setFormData }: PerformanceTabP
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {t('form.performance.proxySettings.proxyMaxTempFileSizeDesc', 'Maximum size of temp file for buffering. Use 0 for unlimited (large downloads).')}
+              {t('form.performance.proxySettings.proxyMaxTempFileSizeDesc', 'Maximum size of temp file for buffering. Set to 0 to disable temp files (responses use memory buffers only).')}
             </p>
           </div>
 
@@ -249,7 +249,7 @@ export function PerformanceTabContent({ formData, setFormData }: PerformanceTabP
               <option value="off">{t('form.performance.proxySettings.requestBufferingOff', 'Off (stream to upstream)')}</option>
             </select>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {t('form.performance.proxySettings.proxyRequestBufferingDesc', 'Disable request buffering to prevent high memory usage during large file uploads (10GB+).')}
+              {t('form.performance.proxySettings.proxyRequestBufferingDesc', 'Disable request buffering to stream uploads directly without creating temp files. Recommended for large file uploads (10GB+).')}
             </p>
           </div>
 

@@ -276,8 +276,24 @@ mkdir -p /tmp/modsecurity/data
 mkdir -p /tmp/modsecurity/upload
 mkdir -p /var/www/acme-challenge
 
+# Clean up stale temp files from previous runs (orphaned by crashes/interrupted transfers)
+echo "[Entrypoint] Cleaning up stale temp files..."
+find /etc/nginx/client_body_temp /etc/nginx/proxy_temp /etc/nginx/fastcgi_temp \
+     /etc/nginx/uwsgi_temp /etc/nginx/scgi_temp \
+     /tmp/modsecurity/tmp /tmp/modsecurity/upload \
+     -type f -mmin +60 -delete 2>/dev/null || true
+
 # Set permissions
 chown -R nginx:nginx /var/cache/nginx /tmp/modsecurity /var/www/acme-challenge 2>/dev/null || true
+
+# Background periodic cleanup of stale temp files (every hour)
+(while true; do
+    sleep 3600
+    find /etc/nginx/client_body_temp /etc/nginx/proxy_temp /etc/nginx/fastcgi_temp \
+         /etc/nginx/uwsgi_temp /etc/nginx/scgi_temp \
+         /tmp/modsecurity/tmp /tmp/modsecurity/upload \
+         -type f -mmin +60 -delete 2>/dev/null || true
+done) &
 
 # Test nginx configuration
 echo "[Entrypoint] Testing nginx configuration..."

@@ -33,6 +33,10 @@ export interface GlobalSettings {
   proxy_max_temp_file_size?: string;
   proxy_temp_file_write_size?: string;
 
+  // Proxy Buffering settings
+  proxy_buffering?: string;
+  proxy_request_buffering?: string;
+
   // Open File Cache settings
   open_file_cache_enabled?: boolean;
   open_file_cache_max?: number;

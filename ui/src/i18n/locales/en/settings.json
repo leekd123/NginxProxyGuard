@@ -618,7 +618,12 @@
     "performance": {
       "buffer": {
         "title": "Proxy Buffer Settings",
-        "description": "Configure how responses from upstream servers are buffered. Proper buffer sizing balances memory usage and performance."
+        "description": "Configure how responses from upstream servers are buffered. Proper buffer sizing balances memory usage and performance.",
+        "useNginxDefault": "Use nginx default (on)",
+        "bufferingOn": "On (buffer responses)",
+        "bufferingOff": "Off (stream directly)",
+        "requestBufferingOn": "On (buffer entire request)",
+        "requestBufferingOff": "Off (stream to upstream)"
       },
       "openFileCache": {
         "title": "Open File Cache"
@@ -806,6 +811,14 @@
       "proxy_temp_file_write_size": {
         "label": "Temp File Write Size",
         "description": "Size of data that can be written to temporary file at once."
+      },
+      "proxy_buffering": {
+        "label": "Proxy Buffering",
+        "description": "When on, nginx buffers the entire response before sending to client. Turn off for large downloads or real-time streaming."
+      },
+      "proxy_request_buffering": {
+        "label": "Proxy Request Buffering",
+        "description": "When on, nginx buffers the entire request body to disk before forwarding. Turn off to stream uploads directly without creating temp files."
       },
       "open_file_cache_enabled": {
         "label": "Enable Open File Cache",
@@ -1167,6 +1180,8 @@
       "proxy_busy_buffers_size": "Buffer size for sending partial response to client while upstream is still sending.",
       "proxy_max_temp_file_size": "Maximum size of temp file for storing response when buffers are full. Set to 0 to disable temp files.",
       "proxy_temp_file_write_size": "Size of data written to temp file at once.",
+      "proxy_buffering": "When on, nginx buffers the entire upstream response before sending to client. Turn off for SSE, large downloads, or real-time streaming to avoid temp files.",
+      "proxy_request_buffering": "When on, nginx buffers the entire request body to disk before forwarding to upstream. Turn off to stream uploads directly without creating temp files. Recommended for large file uploads (10GB+).",
       "open_file_cache_enabled": "Cache file descriptors and metadata for static files. Improves performance for sites with many static files.",
       "open_file_cache_max": "Maximum number of entries to store in cache.",
       "open_file_cache_inactive": "Cache entries not accessed within this time are removed.",

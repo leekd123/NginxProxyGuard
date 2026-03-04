@@ -142,6 +142,9 @@
         "challengeSuspiciousDescription": "의심스러운 요청에 CAPTCHA를 표시합니다",
         "customBlocked": "사용자 정의 차단 목록",
         "customBlockedPlaceholder": "차단할 User-Agent를 한 줄에 하나씩 입력",
+        "customAllowed": "사용자 정의 예외 목록",
+        "customAllowedDescription": "이 목록의 User-Agent는 모든 봇 필터 차단을 우회합니다",
+        "customAllowedPlaceholder": "허용할 User-Agent를 한 줄에 하나씩 입력",
         "settingsLink": "봇 목록은 <1>설정 &rarr; Bot Filter</1>에서 관리할 수 있습니다"
       },
       "geoip": {
@@ -346,7 +349,7 @@
         "clientMaxBodySize": "클라이언트 최대 본문 크기",
         "clientMaxBodySizeDesc": "클라이언트 요청 본문의 최대 허용 크기입니다. 무제한은 0을 사용하세요.",
         "proxyMaxTempFileSize": "프록시 최대 임시 파일 크기",
-        "proxyMaxTempFileSizeDesc": "버퍼링용 임시 파일의 최대 크기입니다. 대용량 다운로드를 위해 0(무제한)을 사용하세요.",
+        "proxyMaxTempFileSizeDesc": "버퍼링용 임시 파일의 최대 크기입니다. 0으로 설정하면 임시 파일을 사용하지 않습니다 (메모리 버퍼만 사용).",
         "proxyBuffering": "프록시 버퍼링",
         "proxyBufferingDesc": "실시간 스트리밍이나 대용량 파일 전송을 위해 버퍼링을 비활성화하세요.",
         "useGlobal": "전역 설정 사용",
@@ -354,12 +357,12 @@
         "bufferingOn": "켜기 (응답 버퍼링)",
         "bufferingOff": "끄기 (직접 스트리밍)",
         "proxyRequestBuffering": "프록시 요청 버퍼링",
-        "proxyRequestBufferingDesc": "대용량 파일 업로드(10GB+) 시 높은 메모리 사용을 방지하려면 요청 버퍼링을 비활성화하세요.",
+        "proxyRequestBufferingDesc": "대용량 파일 업로드(10GB+) 시 임시 파일 없이 직접 스트리밍하려면 요청 버퍼링을 비활성화하세요.",
         "requestBufferingOn": "켜기 (전체 요청 버퍼링)",
         "requestBufferingOff": "끄기 (업스트림으로 스트리밍)",
         "infoTitle": "대용량 파일 전송 팁:",
         "infoUpload": "대용량 업로드: client_max_body_size를 늘리세요 (예: 10g 또는 무제한은 0)",
-        "infoDownload": "대용량 다운로드: proxy_max_temp_file_size를 0으로 설정하세요",
+        "infoDownload": "대용량 다운로드: proxy_buffering을 off로 설정하거나, proxy_max_temp_file_size를 늘리세요",
         "infoStreaming": "스트리밍: proxy_buffering을 off로 설정하세요",
         "infoRequestBuffering": "대용량 업로드(10GB+): proxy_request_buffering을 off, client_max_body_size를 0으로 설정하세요 (WAF 요청 본문 검사가 자동으로 비활성화됩니다)"
       }
@@ -452,7 +455,7 @@
       "compression": "데이터를 압축해서 전송합니다. 인터넷 데이터를 아끼고 속도도 빨라집니다.",
       "proxyOverride": "이 호스트에 대해 전역 프록시 설정을 재정의합니다. 기본값과 다른 제한이 필요한 호스트에 유용합니다.",
       "clientMaxBodySize": "업로드 최대 허용 크기를 설정합니다. 무제한은 0, 또는 100m, 1g 같은 값을 사용하세요. 파일 업로드 및 대용량 API 요청에 영향을 줍니다.",
-      "proxyMaxTempFileSize": "버퍼링 중 임시 파일이 커질 수 있는 최대 크기입니다. 10GB 이상의 대용량 다운로드를 위해 0(무제한)으로 설정하세요. proxy_buffering이 켜져 있을 때만 사용됩니다.",
+      "proxyMaxTempFileSize": "버퍼링 중 임시 파일이 커질 수 있는 최대 크기입니다. 0으로 설정하면 임시 파일을 사용하지 않습니다 (메모리 버퍼만 사용). 대용량 다운로드는 proxy_buffering을 끄는 것을 권장합니다. proxy_buffering이 켜져 있을 때만 사용됩니다.",
       "proxyBuffering": "켜면 nginx가 전체 응답을 버퍼링한 후 클라이언트에 전송합니다. 끄면 응답이 직접 스트리밍됩니다. SSE, 대용량 다운로드, 실시간 스트리밍에는 끄세요.",
       "proxyRequestBuffering": "켜면 nginx가 전체 요청 본문을 버퍼링한 후 업스트림으로 전달합니다. 끄면 요청 본문이 직접 스트리밍됩니다. 대용량 업로드(10GB+) 시 과도한 메모리 사용을 방지하려면 끄세요."
     },

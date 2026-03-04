@@ -508,6 +508,12 @@ server {
         set $priority_allow 1;
     }
 {{end}}{{end}}
+{{if .BotFilter.CustomAllowedAgents}}
+    # Custom allowed agents bypass all bot filtering
+    if ($http_user_agent ~* ({{toRegexPattern .BotFilter.CustomAllowedAgents}})) {
+        set $priority_allow 1;
+    }
+{{end}}
 {{if .BotFilter.BlockBadBots}}{{if .BadBotsList}}
     set $block_bad_bot 0;
     if ($http_user_agent ~* ({{toRegexPattern .BadBotsList}})) {
@@ -688,9 +694,9 @@ server {
         {{if gt .GlobalSettings.ClientBodyTimeout 0}}client_body_timeout {{.GlobalSettings.ClientBodyTimeout}}s;{{end}}
         {{if gt .GlobalSettings.SendTimeout 0}}send_timeout {{.GlobalSettings.SendTimeout}}s;{{end}}
         {{if .Host.ClientMaxBodySize}}client_max_body_size {{.Host.ClientMaxBodySize}};{{else if .GlobalSettings.ClientMaxBodySize}}client_max_body_size {{.GlobalSettings.ClientMaxBodySize}};{{end}}
-        {{if .Host.ProxyBuffering}}proxy_buffering {{.Host.ProxyBuffering}};{{end}}
-        {{if .Host.ProxyRequestBuffering}}proxy_request_buffering {{.Host.ProxyRequestBuffering}};{{end}}
-        {{if and .Host.WAFEnabled (eq .Host.ProxyRequestBuffering "off")}}
+        {{if .Host.ProxyBuffering}}proxy_buffering {{.Host.ProxyBuffering}};{{else if .GlobalSettings.ProxyBuffering}}proxy_buffering {{.GlobalSettings.ProxyBuffering}};{{end}}
+        {{if .Host.ProxyRequestBuffering}}proxy_request_buffering {{.Host.ProxyRequestBuffering}};{{else if .GlobalSettings.ProxyRequestBuffering}}proxy_request_buffering {{.GlobalSettings.ProxyRequestBuffering}};{{end}}
+        {{if and .Host.WAFEnabled (or (eq .Host.ProxyRequestBuffering "off") (and (eq .Host.ProxyRequestBuffering "") (eq .GlobalSettings.ProxyRequestBuffering "off")))}}
         # Disable ModSecurity request body inspection for large file upload support
         # WAF still protects headers, URL patterns, and response inspection
         modsecurity_rules 'SecRequestBodyAccess Off';
@@ -782,9 +788,9 @@ server {
         {{if gt .GlobalSettings.ClientBodyTimeout 0}}client_body_timeout {{.GlobalSettings.ClientBodyTimeout}}s;{{end}}
         {{if gt .GlobalSettings.SendTimeout 0}}send_timeout {{.GlobalSettings.SendTimeout}}s;{{end}}
         {{if .Host.ClientMaxBodySize}}client_max_body_size {{.Host.ClientMaxBodySize}};{{else if .GlobalSettings.ClientMaxBodySize}}client_max_body_size {{.GlobalSettings.ClientMaxBodySize}};{{end}}
-        {{if .Host.ProxyBuffering}}proxy_buffering {{.Host.ProxyBuffering}};{{end}}
-        {{if .Host.ProxyRequestBuffering}}proxy_request_buffering {{.Host.ProxyRequestBuffering}};{{end}}
-        {{if and .Host.WAFEnabled (eq .Host.ProxyRequestBuffering "off")}}
+        {{if .Host.ProxyBuffering}}proxy_buffering {{.Host.ProxyBuffering}};{{else if .GlobalSettings.ProxyBuffering}}proxy_buffering {{.GlobalSettings.ProxyBuffering}};{{end}}
+        {{if .Host.ProxyRequestBuffering}}proxy_request_buffering {{.Host.ProxyRequestBuffering}};{{else if .GlobalSettings.ProxyRequestBuffering}}proxy_request_buffering {{.GlobalSettings.ProxyRequestBuffering}};{{end}}
+        {{if and .Host.WAFEnabled (or (eq .Host.ProxyRequestBuffering "off") (and (eq .Host.ProxyRequestBuffering "") (eq .GlobalSettings.ProxyRequestBuffering "off")))}}
         # Disable ModSecurity request body inspection for large file upload support
         # WAF still protects headers, URL patterns, and response inspection
         modsecurity_rules 'SecRequestBodyAccess Off';
@@ -1318,6 +1324,12 @@ server {
         set $priority_allow 1;
     }
 {{end}}{{end}}
+{{if .BotFilter.CustomAllowedAgents}}
+    # Custom allowed agents bypass all bot filtering
+    if ($http_user_agent ~* ({{toRegexPattern .BotFilter.CustomAllowedAgents}})) {
+        set $priority_allow 1;
+    }
+{{end}}
 {{if .BotFilter.BlockBadBots}}{{if .BadBotsList}}
     set $block_bad_bot 0;
     if ($http_user_agent ~* ({{toRegexPattern .BadBotsList}})) {
@@ -1496,9 +1508,9 @@ server {
         {{if gt .GlobalSettings.ClientBodyTimeout 0}}client_body_timeout {{.GlobalSettings.ClientBodyTimeout}}s;{{end}}
         {{if gt .GlobalSettings.SendTimeout 0}}send_timeout {{.GlobalSettings.SendTimeout}}s;{{end}}
         {{if .Host.ClientMaxBodySize}}client_max_body_size {{.Host.ClientMaxBodySize}};{{else if .GlobalSettings.ClientMaxBodySize}}client_max_body_size {{.GlobalSettings.ClientMaxBodySize}};{{end}}
-        {{if .Host.ProxyBuffering}}proxy_buffering {{.Host.ProxyBuffering}};{{end}}
-        {{if .Host.ProxyRequestBuffering}}proxy_request_buffering {{.Host.ProxyRequestBuffering}};{{end}}
-        {{if and .Host.WAFEnabled (eq .Host.ProxyRequestBuffering "off")}}
+        {{if .Host.ProxyBuffering}}proxy_buffering {{.Host.ProxyBuffering}};{{else if .GlobalSettings.ProxyBuffering}}proxy_buffering {{.GlobalSettings.ProxyBuffering}};{{end}}
+        {{if .Host.ProxyRequestBuffering}}proxy_request_buffering {{.Host.ProxyRequestBuffering}};{{else if .GlobalSettings.ProxyRequestBuffering}}proxy_request_buffering {{.GlobalSettings.ProxyRequestBuffering}};{{end}}
+        {{if and .Host.WAFEnabled (or (eq .Host.ProxyRequestBuffering "off") (and (eq .Host.ProxyRequestBuffering "") (eq .GlobalSettings.ProxyRequestBuffering "off")))}}
         # Disable ModSecurity request body inspection for large file upload support
         # WAF still protects headers, URL patterns, and response inspection
         modsecurity_rules 'SecRequestBodyAccess Off';

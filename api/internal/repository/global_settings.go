@@ -66,6 +66,8 @@ func (r *GlobalSettingsRepository) getFromDB(ctx context.Context) (*model.Global
 		       COALESCE(proxy_busy_buffers_size, '128k') as proxy_busy_buffers_size,
 		       COALESCE(proxy_max_temp_file_size, '1024m') as proxy_max_temp_file_size,
 		       COALESCE(proxy_temp_file_write_size, '64k') as proxy_temp_file_write_size,
+		       COALESCE(proxy_buffering, '') as proxy_buffering,
+		       COALESCE(proxy_request_buffering, '') as proxy_request_buffering,
 		       COALESCE(open_file_cache_enabled, true) as open_file_cache_enabled,
 		       COALESCE(open_file_cache_max, 10000) as open_file_cache_max,
 		       COALESCE(open_file_cache_inactive, '60s') as open_file_cache_inactive,
@@ -102,6 +104,7 @@ func (r *GlobalSettingsRepository) getFromDB(ctx context.Context) (*model.Global
 		&s.LimitRate, &s.LimitRateAfter,
 		&s.ProxyBufferSize, &s.ProxyBuffers, &s.ProxyBusyBuffersSize,
 		&s.ProxyMaxTempFileSize, &s.ProxyTempFileWriteSize,
+		&s.ProxyBuffering, &s.ProxyRequestBuffering,
 		&s.OpenFileCacheEnabled, &s.OpenFileCacheMax, &s.OpenFileCacheInactive,
 		&s.OpenFileCacheValid, &s.OpenFileCacheMinUses, &s.OpenFileCacheErrors,
 		&s.CreatedAt, &s.UpdatedAt,
@@ -275,6 +278,13 @@ func (r *GlobalSettingsRepository) Update(ctx context.Context, req *model.Update
 			reset_timedout_connection = CASE WHEN $57::BOOLEAN IS NOT NULL THEN $57 ELSE reset_timedout_connection END,
 			limit_rate = CASE WHEN $58::INT IS NOT NULL THEN $58 ELSE limit_rate END,
 			limit_rate_after = CASE WHEN $59 != '' THEN $59 ELSE limit_rate_after END,
+			proxy_buffer_size = CASE WHEN $60 != '' THEN $60 ELSE proxy_buffer_size END,
+			proxy_buffers = CASE WHEN $61 != '' THEN $61 ELSE proxy_buffers END,
+			proxy_busy_buffers_size = CASE WHEN $62 != '' THEN $62 ELSE proxy_busy_buffers_size END,
+			proxy_max_temp_file_size = CASE WHEN $63 != '' THEN $63 ELSE proxy_max_temp_file_size END,
+			proxy_temp_file_write_size = CASE WHEN $64 != '' THEN $64 ELSE proxy_temp_file_write_size END,
+			proxy_buffering = CASE WHEN $65 != '' THEN $65 ELSE proxy_buffering END,
+			proxy_request_buffering = CASE WHEN $66 != '' THEN $66 ELSE proxy_request_buffering END,
 			updated_at = NOW()
 	`
 
@@ -313,6 +323,9 @@ func (r *GlobalSettingsRepository) Update(ctx context.Context, req *model.Update
 		req.LimitReqEnabled, limitReqZoneSize, req.LimitReqRate, req.LimitReqBurst,
 		req.ResetTimedoutConnection,
 		req.LimitRate, limitRateAfter,
+		req.ProxyBufferSize, req.ProxyBuffers, req.ProxyBusyBuffersSize,
+		req.ProxyMaxTempFileSize, req.ProxyTempFileWriteSize,
+		req.ProxyBuffering, req.ProxyRequestBuffering,
 	)
 	if err != nil {
 		return nil, err

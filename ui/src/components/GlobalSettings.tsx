@@ -367,6 +367,28 @@ export default function GlobalSettings() {
                       placeholder="64k"
                     />
                   </SettingField>
+                  <SettingField settingKey="proxy_buffering">
+                    <select
+                      value={getStringValue('proxy_buffering', '')}
+                      onChange={(e) => handleChange('proxy_buffering', e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">{t('global.performance.buffer.useNginxDefault', 'Use nginx default (on)')}</option>
+                      <option value="on">{t('global.performance.buffer.bufferingOn', 'On (buffer responses)')}</option>
+                      <option value="off">{t('global.performance.buffer.bufferingOff', 'Off (stream directly)')}</option>
+                    </select>
+                  </SettingField>
+                  <SettingField settingKey="proxy_request_buffering">
+                    <select
+                      value={getStringValue('proxy_request_buffering', '')}
+                      onChange={(e) => handleChange('proxy_request_buffering', e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">{t('global.performance.buffer.useNginxDefault', 'Use nginx default (on)')}</option>
+                      <option value="on">{t('global.performance.buffer.requestBufferingOn', 'On (buffer entire request)')}</option>
+                      <option value="off">{t('global.performance.buffer.requestBufferingOff', 'Off (stream to upstream)')}</option>
+                    </select>
+                  </SettingField>
                 </div>
               </div>
 

@@ -85,6 +85,10 @@ func (db *DB) RunMigrations() error {
 		ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS client_max_body_size character varying(20) DEFAULT '';
 		ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS proxy_max_temp_file_size character varying(20) DEFAULT '';
 
+		-- Global settings: proxy buffering columns (v2.4.0+)
+		ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS proxy_buffering character varying(10) DEFAULT '';
+		ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS proxy_request_buffering character varying(10) DEFAULT '';
+
 		-- Default exploit block rules (seed if not exists)
 		INSERT INTO public.exploit_block_rules (id, category, name, pattern, pattern_type, description, severity, enabled, is_system, sort_order) VALUES
 		('4243721e-8f8d-4a2b-8496-0be62d50163f', 'sql_injection', 'SQL Union Select', E'(\\"|''|` + "`" + `)(.*)(union)(.*)(select)(\\"|''|` + "`" + `)' , 'query_string', 'Blocks SQL UNION SELECT injection attempts', 'critical', true, true, 1),

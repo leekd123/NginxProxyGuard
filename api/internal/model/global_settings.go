@@ -62,6 +62,10 @@ type GlobalSettings struct {
 	ProxyMaxTempFileSize   string `json:"proxy_max_temp_file_size" db:"proxy_max_temp_file_size"`
 	ProxyTempFileWriteSize string `json:"proxy_temp_file_write_size" db:"proxy_temp_file_write_size"`
 
+	// Proxy buffering settings (on/off)
+	ProxyBuffering        string `json:"proxy_buffering" db:"proxy_buffering"`
+	ProxyRequestBuffering string `json:"proxy_request_buffering" db:"proxy_request_buffering"`
+
 	// Open file cache settings
 	OpenFileCacheEnabled  bool   `json:"open_file_cache_enabled" db:"open_file_cache_enabled"`
 	OpenFileCacheMax      int    `json:"open_file_cache_max" db:"open_file_cache_max"`
@@ -174,6 +178,10 @@ type UpdateGlobalSettingsRequest struct {
 	ProxyBusyBuffersSize   string `json:"proxy_busy_buffers_size,omitempty"`
 	ProxyMaxTempFileSize   string `json:"proxy_max_temp_file_size,omitempty"`
 	ProxyTempFileWriteSize string `json:"proxy_temp_file_write_size,omitempty"`
+
+	// Proxy buffering settings (on/off)
+	ProxyBuffering        string `json:"proxy_buffering,omitempty"`
+	ProxyRequestBuffering string `json:"proxy_request_buffering,omitempty"`
 
 	// Open file cache settings
 	OpenFileCacheEnabled  *bool  `json:"open_file_cache_enabled,omitempty"`

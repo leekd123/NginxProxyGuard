@@ -335,6 +335,7 @@ type ProxyHostData struct {
 	ProxySendTimeout      int                    `json:"proxy_send_timeout"`
 	ProxyReadTimeout      int                    `json:"proxy_read_timeout"`
 	ProxyBuffering        string                 `json:"proxy_buffering,omitempty"`
+	ProxyRequestBuffering string                 `json:"proxy_request_buffering,omitempty"`
 	ClientMaxBodySize     string                 `json:"client_max_body_size,omitempty"`
 	ProxyMaxTempFileSize  string                 `json:"proxy_max_temp_file_size,omitempty"`
 	Meta                  map[string]interface{} `json:"meta,omitempty"`

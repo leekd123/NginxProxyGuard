@@ -214,6 +214,7 @@ func (r *BackupRepository) exportProxyHosts(ctx context.Context) ([]model.ProxyH
 		       COALESCE(proxy_send_timeout, 0) as proxy_send_timeout,
 		       COALESCE(proxy_read_timeout, 0) as proxy_read_timeout,
 		       COALESCE(proxy_buffering, '') as proxy_buffering,
+		       COALESCE(proxy_request_buffering, '') as proxy_request_buffering,
 		       COALESCE(client_max_body_size, '') as client_max_body_size,
 		       COALESCE(proxy_max_temp_file_size, '') as proxy_max_temp_file_size,
 		       meta
@@ -243,7 +244,7 @@ func (r *BackupRepository) exportProxyHosts(ctx context.Context) ([]model.ProxyH
 			&accessListID, &ph.Enabled, &ph.IsFavorite,
 			&ph.RateLimitEnabled, &ph.Fail2banEnabled, &ph.BotFilterEnabled, &ph.SecurityHeadersEnabled,
 			&ph.ProxyConnectTimeout, &ph.ProxySendTimeout, &ph.ProxyReadTimeout,
-			&ph.ProxyBuffering, &ph.ClientMaxBodySize, &ph.ProxyMaxTempFileSize,
+			&ph.ProxyBuffering, &ph.ProxyRequestBuffering, &ph.ClientMaxBodySize, &ph.ProxyMaxTempFileSize,
 			&meta,
 		)
 		if err != nil {

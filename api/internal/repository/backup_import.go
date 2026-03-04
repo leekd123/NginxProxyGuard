@@ -416,9 +416,9 @@ func (r *BackupRepository) importProxyHost(ctx context.Context, tx *sql.Tx, ph *
 		                         access_list_id, enabled, is_favorite,
 		                         rate_limit_enabled, fail2ban_enabled, bot_filter_enabled, security_headers_enabled,
 		                         proxy_connect_timeout, proxy_send_timeout, proxy_read_timeout,
-		                         proxy_buffering, client_max_body_size, proxy_max_temp_file_size, meta)
+		                         proxy_buffering, proxy_request_buffering, client_max_body_size, proxy_max_temp_file_size, meta)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-		        $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
+		        $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
 		RETURNING id
 	`
 
@@ -441,7 +441,7 @@ func (r *BackupRepository) importProxyHost(ctx context.Context, tx *sql.Tx, ph *
 		accessListID, ph.ProxyHost.Enabled, ph.ProxyHost.IsFavorite,
 		ph.ProxyHost.RateLimitEnabled, ph.ProxyHost.Fail2banEnabled, ph.ProxyHost.BotFilterEnabled, ph.ProxyHost.SecurityHeadersEnabled,
 		ph.ProxyHost.ProxyConnectTimeout, ph.ProxyHost.ProxySendTimeout, ph.ProxyHost.ProxyReadTimeout,
-		ph.ProxyHost.ProxyBuffering, ph.ProxyHost.ClientMaxBodySize, ph.ProxyHost.ProxyMaxTempFileSize, meta,
+		ph.ProxyHost.ProxyBuffering, ph.ProxyHost.ProxyRequestBuffering, ph.ProxyHost.ClientMaxBodySize, ph.ProxyHost.ProxyMaxTempFileSize, meta,
 	).Scan(&newID)
 	if err != nil {
 		return "", err

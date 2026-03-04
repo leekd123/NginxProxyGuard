@@ -1083,6 +1083,7 @@ CREATE TABLE IF NOT EXISTS public.proxy_hosts (
     proxy_send_timeout integer DEFAULT 0,
     proxy_read_timeout integer DEFAULT 0,
     proxy_buffering character varying(10) DEFAULT ''::character varying,
+    proxy_request_buffering character varying(10) DEFAULT ''::character varying,
     client_max_body_size character varying(20) DEFAULT ''::character varying,
     proxy_max_temp_file_size character varying(20) DEFAULT ''::character varying,
     is_favorite boolean DEFAULT false NOT NULL,
@@ -2100,6 +2101,7 @@ ALTER TYPE public.block_reason ADD VALUE IF NOT EXISTS 'access_denied';
 ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS cache_static_only boolean DEFAULT true NOT NULL;
 ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS cache_ttl character varying(20) DEFAULT '7d'::character varying NOT NULL;
 ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS is_favorite boolean DEFAULT false NOT NULL;
+ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS proxy_request_buffering character varying(10) DEFAULT '';
 
 -- Add column comments
 COMMENT ON COLUMN public.proxy_hosts.cache_static_only IS 'Only cache static assets (js, css, images, fonts) - excludes API paths';

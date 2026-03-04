@@ -1082,6 +1082,8 @@ export interface GlobalSettingsData {
   waf_auto_ban_enabled?: boolean;
   waf_auto_ban_threshold?: number;
   ssl_dhparam_bits?: number;
+  proxy_buffering?: string;
+  proxy_request_buffering?: string;
 }
 
 // WAF Types

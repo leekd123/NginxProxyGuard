@@ -182,6 +182,69 @@ test.describe('Global Settings', () => {
     });
   });
 
+  test.describe('Proxy Buffering Settings', () => {
+    test('should display proxy buffering selects in performance tab', async () => {
+      await settingsPage.goto();
+      await settingsPage.gotoPerformanceTab();
+
+      await expect(settingsPage.proxyBufferingSelect).toBeVisible({ timeout: TIMEOUTS.medium });
+      await expect(settingsPage.proxyRequestBufferingSelect).toBeVisible({ timeout: TIMEOUTS.medium });
+    });
+
+    test('should update proxy buffering to off', async () => {
+      await settingsPage.goto();
+      await settingsPage.gotoPerformanceTab();
+
+      await settingsPage.setProxyBuffering('off');
+      await settingsPage.save();
+
+      // Verify via API
+      const settings = await apiHelper.getGlobalSettings();
+      expect(settings.proxy_buffering).toBe('off');
+    });
+
+    test('should update proxy request buffering to off', async () => {
+      await settingsPage.goto();
+      await settingsPage.gotoPerformanceTab();
+
+      await settingsPage.setProxyRequestBuffering('off');
+      await settingsPage.save();
+
+      // Verify via API
+      const settings = await apiHelper.getGlobalSettings();
+      expect(settings.proxy_request_buffering).toBe('off');
+    });
+
+    test('should update proxy buffering via API', async () => {
+      // Set to on
+      const updated = await apiHelper.updateGlobalSettings({
+        proxy_buffering: 'on',
+        proxy_request_buffering: 'on',
+      });
+      expect(updated).toBeTruthy();
+
+      // Verify
+      const settings = await apiHelper.getGlobalSettings();
+      expect(settings.proxy_buffering).toBe('on');
+      expect(settings.proxy_request_buffering).toBe('on');
+    });
+
+    test('should reflect API changes in UI', async () => {
+      // Set via API
+      await apiHelper.updateGlobalSettings({
+        proxy_buffering: 'off',
+        proxy_request_buffering: 'off',
+      });
+
+      // Verify in UI
+      await settingsPage.goto();
+      await settingsPage.gotoPerformanceTab();
+
+      await expect(settingsPage.proxyBufferingSelect).toHaveValue('off');
+      await expect(settingsPage.proxyRequestBufferingSelect).toHaveValue('off');
+    });
+  });
+
   test.describe('SSL/ACME Settings', () => {
     test('should display SSL settings section', async () => {
       await settingsPage.goto();

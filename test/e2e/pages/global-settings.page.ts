@@ -48,6 +48,10 @@ export class GlobalSettingsPage extends BasePage {
   readonly captchaSiteKeyInput: Locator;
   readonly captchaSecretKeyInput: Locator;
 
+  // Proxy Buffering Settings
+  readonly proxyBufferingSelect: Locator;
+  readonly proxyRequestBufferingSelect: Locator;
+
   // Status messages
   readonly successMessage: Locator;
   readonly errorMessage: Locator;
@@ -109,6 +113,10 @@ export class GlobalSettingsPage extends BasePage {
     this.captchaProviderSelect = page.locator('select[name*="captcha_provider"], [role="combobox"]').first();
     this.captchaSiteKeyInput = page.locator('input[name*="site_key"], input[placeholder*="site.*key"]').first();
     this.captchaSecretKeyInput = page.locator('input[name*="secret_key"], input[placeholder*="secret"]').first();
+
+    // Proxy Buffering Settings
+    this.proxyBufferingSelect = page.locator('div.group').filter({ has: page.locator('label', { hasText: /^Proxy Buffering/ }) }).filter({ hasNot: page.locator('label:has-text("Request")') }).locator('select').first();
+    this.proxyRequestBufferingSelect = page.locator('div.group').filter({ has: page.locator('label:has-text("Proxy Request Buffering")') }).locator('select').first();
 
     // Status messages
     this.successMessage = page.locator('text=/success|saved|applied/i, [class*="toast"]');
@@ -246,6 +254,37 @@ export class GlobalSettingsPage extends BasePage {
       if (isChecked !== enable) {
         await this.botFilterDefaultToggle.click();
       }
+    }
+  }
+
+  // ==================== Tab Navigation ====================
+
+  /**
+   * Click the Performance tab.
+   */
+  async gotoPerformanceTab(): Promise<void> {
+    const tab = this.page.locator('button, a, [role="tab"]').filter({ hasText: /performance/i }).first();
+    await tab.click();
+    await this.page.waitForTimeout(300);
+  }
+
+  // ==================== Proxy Buffering Settings ====================
+
+  /**
+   * Set global proxy buffering.
+   */
+  async setProxyBuffering(value: '' | 'on' | 'off'): Promise<void> {
+    if (await this.proxyBufferingSelect.isVisible()) {
+      await this.proxyBufferingSelect.selectOption(value);
+    }
+  }
+
+  /**
+   * Set global proxy request buffering.
+   */
+  async setProxyRequestBuffering(value: '' | 'on' | 'off'): Promise<void> {
+    if (await this.proxyRequestBufferingSelect.isVisible()) {
+      await this.proxyRequestBufferingSelect.selectOption(value);
     }
   }
 

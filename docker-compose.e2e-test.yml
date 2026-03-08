@@ -90,7 +90,7 @@ services:
       db:
         condition: service_healthy
       valkey:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - e2e_test_nginx_conf:/etc/nginx:rw
       - e2e_test_api_data:/app/data:rw

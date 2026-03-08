@@ -441,7 +441,7 @@ export default function HostResourcesSection({ systemHealth }: {
                       <Tooltip
                         contentStyle={tooltipStyle}
                         labelStyle={{ color: '#9CA3AF', fontSize: 11 }}
-                        itemStyle={{ fontSize: 12 }}
+                        itemStyle={{ color: '#F3F4F6', fontSize: 12 }}
                         formatter={(value: number, name: string) => {
                           const formatted = value >= 1024 ? `${(value / 1024).toFixed(2)} MB/s` : `${value.toFixed(2)} KB/s`;
                           return [formatted, name === 'networkIn' ? t('hostResources.networkIn') : t('hostResources.networkOut')];

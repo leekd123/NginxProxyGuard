@@ -295,9 +295,75 @@ chown -R nginx:nginx /var/cache/nginx /tmp/modsecurity /var/www/acme-challenge 2
          -type f -mmin +60 -delete 2>/dev/null || true
 done) &
 
-# Test nginx configuration
+# Test nginx configuration with auto-recovery
+# If nginx -t fails, identify and disable the problematic config file,
+# then retry. This prevents one broken host from taking down all hosts.
+test_and_recover_nginx() {
+    local max_retries=20
+    local retry=0
+    local disabled_count=0
+
+    while [ $retry -lt $max_retries ]; do
+        local test_output
+        test_output=$(nginx -t 2>&1)
+
+        if [ $? -eq 0 ]; then
+            if [ $disabled_count -gt 0 ]; then
+                echo "[Entrypoint] WARNING: Nginx started with $disabled_count config(s) disabled."
+                echo "[Entrypoint] Disabled configs will be regenerated when the API syncs on startup."
+                ls /etc/nginx/conf.d/*.disabled 2>/dev/null | while read f; do
+                    echo "[Entrypoint]   - $(basename "$f")"
+                done
+            fi
+            return 0
+        fi
+
+        # Try to identify the problematic config file
+        local problem_conf=""
+
+        # Method 1: Config file referenced directly in error
+        # e.g. "in /etc/nginx/conf.d/proxy_host_foo.conf:10"
+        problem_conf=$(echo "$test_output" | sed -n 's|.*in /etc/nginx/conf\.d/\([^:]*\.conf\).*|\1|p' | head -1)
+
+        # Method 2: Extract missing resource path, find which config references it
+        if [ -z "$problem_conf" ]; then
+            local problem_path=""
+            # Missing SSL certificate
+            problem_path=$(echo "$test_output" | sed -n 's|.*cannot load certificate "\([^"]*\)".*|\1|p' | head -1)
+            # Missing SSL key
+            [ -z "$problem_path" ] && problem_path=$(echo "$test_output" | sed -n 's|.*cannot load certificate key "\([^"]*\)".*|\1|p' | head -1)
+            # Missing file (open() failed)
+            [ -z "$problem_path" ] && problem_path=$(echo "$test_output" | sed -n 's|.*open() "\([^"]*\)" failed.*|\1|p' | head -1)
+
+            if [ -n "$problem_path" ]; then
+                local found_file
+                found_file=$(grep -l "$problem_path" /etc/nginx/conf.d/*.conf 2>/dev/null | head -1)
+                [ -n "$found_file" ] && problem_conf=$(basename "$found_file")
+            fi
+        fi
+
+        # Safety: only auto-disable host configs, not system configs
+        case "$problem_conf" in
+            proxy_host_*|redirect_host_*)
+                echo "[Entrypoint] Disabling broken config: $problem_conf"
+                mv "/etc/nginx/conf.d/$problem_conf" "/etc/nginx/conf.d/$problem_conf.disabled"
+                disabled_count=$((disabled_count + 1))
+                retry=$((retry + 1))
+                ;;
+            *)
+                echo "[Entrypoint] Nginx config test failed (non-host config issue):"
+                echo "$test_output"
+                return 1
+                ;;
+        esac
+    done
+
+    echo "[Entrypoint] Too many broken configs ($max_retries), aborting."
+    return 1
+}
+
 echo "[Entrypoint] Testing nginx configuration..."
-if nginx -t; then
+if test_and_recover_nginx; then
     echo "[Entrypoint] Nginx configuration OK"
 else
     echo "[Entrypoint] Nginx configuration test failed!"

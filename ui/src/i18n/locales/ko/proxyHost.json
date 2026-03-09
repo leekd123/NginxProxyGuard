@@ -39,7 +39,9 @@
     },
     "status": {
       "active": "활성",
-      "disabled": "비활성"
+      "disabled": "비활성",
+      "error": "오류",
+      "errorTooltip": "설정 오류: {{error}}"
     },
     "showing": "{{from}}-{{to}} / {{total}}개",
     "perPage": "표시",

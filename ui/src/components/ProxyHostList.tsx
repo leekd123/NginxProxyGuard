@@ -1256,18 +1256,28 @@ export function ProxyHostList({ onEdit, onAdd }: ProxyHostListProps) {
 
                   {/* Status */}
                   <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => handleToggle(host)}
-                      disabled={toggleMutation.isPending}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${host.enabled
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
-                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
-                        }`}
-                      title={host.enabled ? 'Click to disable' : 'Click to enable'}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${host.enabled ? 'bg-green-500' : 'bg-slate-400'}`} />
-                      {host.enabled ? t('list.status.active') : t('list.status.disabled')}
-                    </button>
+                    {host.config_status === 'error' ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 cursor-help"
+                        title={host.config_error ? t('list.status.errorTooltip', { error: host.config_error }) : t('list.status.error')}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        {t('list.status.error')}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleToggle(host)}
+                        disabled={toggleMutation.isPending}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${host.enabled
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                          }`}
+                        title={host.enabled ? 'Click to disable' : 'Click to enable'}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${host.enabled ? 'bg-green-500' : 'bg-slate-400'}`} />
+                        {host.enabled ? t('list.status.active') : t('list.status.disabled')}
+                      </button>
+                    )}
                   </td>
 
                   {/* Actions */}

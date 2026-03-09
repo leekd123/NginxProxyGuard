@@ -104,7 +104,7 @@ func main() {
 		proxyHostRepo, wafRepo, accessListRepo, geoRepo,
 		rateLimitRepo, securityHeadersRepo, botFilterRepo, upstreamRepo,
 		systemSettingsRepo, cloudProviderRepo, globalSettingsRepo, uriBlockRepo,
-		exploitBlockRuleRepo, certificateRepo, nginxManager,
+		exploitBlockRuleRepo, certificateRepo, systemLogRepo, nginxManager,
 	)
 	dnsProviderService := service.NewDNSProviderService(dnsProviderRepo)
 	certificateService := service.NewCertificateService(

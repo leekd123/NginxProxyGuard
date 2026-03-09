@@ -67,7 +67,7 @@ func (r *ProxyHostRepository) Create(ctx context.Context, req *model.CreateProxy
 			proxy_connect_timeout, proxy_send_timeout, proxy_read_timeout,
 			proxy_buffering, COALESCE(proxy_request_buffering, '') as proxy_request_buffering,
 			client_max_body_size, COALESCE(proxy_max_temp_file_size, '') as proxy_max_temp_file_size,
-			access_list_id, enabled, is_favorite, meta, created_at, updated_at
+			access_list_id, enabled, is_favorite, COALESCE(config_status, 'ok') as config_status, COALESCE(config_error, '') as config_error, meta, created_at, updated_at
 	`
 
 	var host model.ProxyHost
@@ -177,6 +177,8 @@ func (r *ProxyHostRepository) Create(ctx context.Context, req *model.CreateProxy
 		&accessListID,
 		&host.Enabled,
 		&host.IsFavorite,
+		&host.ConfigStatus,
+		&host.ConfigError,
 		&meta,
 		&host.CreatedAt,
 		&host.UpdatedAt,
@@ -230,7 +232,7 @@ func (r *ProxyHostRepository) GetByID(ctx context.Context, id string) (*model.Pr
 			COALESCE(proxy_request_buffering, '') as proxy_request_buffering,
 			COALESCE(client_max_body_size, '') as client_max_body_size,
 			COALESCE(proxy_max_temp_file_size, '') as proxy_max_temp_file_size,
-			access_list_id, enabled, is_favorite, meta, created_at, updated_at
+			access_list_id, enabled, is_favorite, COALESCE(config_status, 'ok') as config_status, COALESCE(config_error, '') as config_error, meta, created_at, updated_at
 		FROM proxy_hosts WHERE id = $1
 	`
 
@@ -271,6 +273,8 @@ func (r *ProxyHostRepository) GetByID(ctx context.Context, id string) (*model.Pr
 		&accessListID,
 		&host.Enabled,
 		&host.IsFavorite,
+		&host.ConfigStatus,
+		&host.ConfigError,
 		&meta,
 		&host.CreatedAt,
 		&host.UpdatedAt,
@@ -363,7 +367,7 @@ func (r *ProxyHostRepository) List(ctx context.Context, page, perPage int, searc
 			COALESCE(proxy_request_buffering, '') as proxy_request_buffering,
 			COALESCE(client_max_body_size, '') as client_max_body_size,
 			COALESCE(proxy_max_temp_file_size, '') as proxy_max_temp_file_size,
-			access_list_id, enabled, is_favorite, meta, created_at, updated_at
+			access_list_id, enabled, is_favorite, COALESCE(config_status, 'ok') as config_status, COALESCE(config_error, '') as config_error, meta, created_at, updated_at
 		FROM proxy_hosts
 		%s
 		ORDER BY %s
@@ -416,6 +420,8 @@ func (r *ProxyHostRepository) List(ctx context.Context, page, perPage int, searc
 			&accessListID,
 			&host.Enabled,
 			&host.IsFavorite,
+			&host.ConfigStatus,
+			&host.ConfigError,
 			&meta,
 			&host.CreatedAt,
 			&host.UpdatedAt,
@@ -680,7 +686,7 @@ func (r *ProxyHostRepository) ToggleFavorite(ctx context.Context, id string) (*m
 			COALESCE(proxy_request_buffering, '') as proxy_request_buffering,
 			COALESCE(client_max_body_size, '') as client_max_body_size,
 			COALESCE(proxy_max_temp_file_size, '') as proxy_max_temp_file_size,
-			access_list_id, enabled, is_favorite, meta, created_at, updated_at
+			access_list_id, enabled, is_favorite, COALESCE(config_status, 'ok') as config_status, COALESCE(config_error, '') as config_error, meta, created_at, updated_at
 	`
 
 	var host model.ProxyHost
@@ -720,6 +726,8 @@ func (r *ProxyHostRepository) ToggleFavorite(ctx context.Context, id string) (*m
 		&accessListID,
 		&host.Enabled,
 		&host.IsFavorite,
+		&host.ConfigStatus,
+		&host.ConfigError,
 		&meta,
 		&host.CreatedAt,
 		&host.UpdatedAt,
@@ -801,7 +809,7 @@ func (r *ProxyHostRepository) GetByDomain(ctx context.Context, domain string) (*
 			COALESCE(proxy_request_buffering, '') as proxy_request_buffering,
 			COALESCE(client_max_body_size, '') as client_max_body_size,
 			COALESCE(proxy_max_temp_file_size, '') as proxy_max_temp_file_size,
-			access_list_id, enabled, is_favorite, meta, created_at, updated_at
+			access_list_id, enabled, is_favorite, COALESCE(config_status, 'ok') as config_status, COALESCE(config_error, '') as config_error, meta, created_at, updated_at
 		FROM proxy_hosts WHERE $1 = ANY(domain_names)
 		LIMIT 1
 	`
@@ -843,6 +851,8 @@ func (r *ProxyHostRepository) GetByDomain(ctx context.Context, domain string) (*
 		&accessListID,
 		&host.Enabled,
 		&host.IsFavorite,
+		&host.ConfigStatus,
+		&host.ConfigError,
 		&meta,
 		&host.CreatedAt,
 		&host.UpdatedAt,
@@ -885,7 +895,7 @@ func (r *ProxyHostRepository) GetAllEnabled(ctx context.Context) ([]model.ProxyH
 			COALESCE(proxy_request_buffering, '') as proxy_request_buffering,
 			COALESCE(client_max_body_size, '') as client_max_body_size,
 			COALESCE(proxy_max_temp_file_size, '') as proxy_max_temp_file_size,
-			access_list_id, enabled, is_favorite, meta, created_at, updated_at
+			access_list_id, enabled, is_favorite, COALESCE(config_status, 'ok') as config_status, COALESCE(config_error, '') as config_error, meta, created_at, updated_at
 		FROM proxy_hosts
 		WHERE enabled = true
 		ORDER BY created_at ASC
@@ -936,6 +946,8 @@ func (r *ProxyHostRepository) GetAllEnabled(ctx context.Context) ([]model.ProxyH
 			&accessListID,
 			&host.Enabled,
 			&host.IsFavorite,
+			&host.ConfigStatus,
+			&host.ConfigError,
 			&meta,
 			&host.CreatedAt,
 			&host.UpdatedAt,
@@ -978,7 +990,7 @@ func (r *ProxyHostRepository) GetByCertificateID(ctx context.Context, certificat
 			COALESCE(proxy_request_buffering, '') as proxy_request_buffering,
 			COALESCE(client_max_body_size, '') as client_max_body_size,
 			COALESCE(proxy_max_temp_file_size, '') as proxy_max_temp_file_size,
-			access_list_id, enabled, is_favorite, meta, created_at, updated_at
+			access_list_id, enabled, is_favorite, COALESCE(config_status, 'ok') as config_status, COALESCE(config_error, '') as config_error, meta, created_at, updated_at
 		FROM proxy_hosts
 		WHERE certificate_id = $1
 		ORDER BY created_at ASC
@@ -1029,6 +1041,8 @@ func (r *ProxyHostRepository) GetByCertificateID(ctx context.Context, certificat
 			&accessListID,
 			&host.Enabled,
 			&host.IsFavorite,
+			&host.ConfigStatus,
+			&host.ConfigError,
 			&meta,
 			&host.CreatedAt,
 			&host.UpdatedAt,
@@ -1050,4 +1064,15 @@ func (r *ProxyHostRepository) GetByCertificateID(ctx context.Context, certificat
 	}
 
 	return hosts, nil
+}
+
+// UpdateConfigStatus updates the config_status and config_error for a proxy host
+func (r *ProxyHostRepository) UpdateConfigStatus(ctx context.Context, id, status, configError string) error {
+	query := `UPDATE proxy_hosts SET config_status = $1, config_error = $2 WHERE id = $3`
+	_, err := r.db.ExecContext(ctx, query, status, configError, id)
+	if err != nil {
+		return fmt.Errorf("failed to update config status: %w", err)
+	}
+	r.invalidateHostCache(ctx, id)
+	return nil
 }

@@ -121,6 +121,10 @@ func (db *DB) RunMigrations() error {
 		CREATE INDEX IF NOT EXISTS idx_logs_part_created_at ON logs_partitioned (created_at DESC);
 		CREATE INDEX IF NOT EXISTS idx_logs_part_status_code ON logs_partitioned (status_code) WHERE status_code IS NOT NULL;
 
+		-- proxy_hosts config status tracking (v2.3.5+)
+		ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS config_status character varying(20) DEFAULT 'ok' NOT NULL;
+		ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS config_error text;
+
 		-- Add foreign key constraint for proxy_hosts.access_list_id (v1.3.31+)
 		-- First clean up any orphaned references, then add FK with ON DELETE SET NULL
 		DO $$

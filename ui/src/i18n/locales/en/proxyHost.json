@@ -39,7 +39,9 @@
     },
     "status": {
       "active": "Active",
-      "disabled": "Disabled"
+      "disabled": "Disabled",
+      "error": "Error",
+      "errorTooltip": "Config error: {{error}}"
     },
     "showing": "{{from}}-{{to}} of {{total}}",
     "perPage": "Show",

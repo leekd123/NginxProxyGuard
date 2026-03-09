@@ -32,6 +32,8 @@ export interface ProxyHost {
   access_list_id?: string
   enabled: boolean
   is_favorite: boolean
+  config_status: string
+  config_error?: string
   meta?: Record<string, unknown>
   created_at: string
   updated_at: string

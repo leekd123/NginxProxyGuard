@@ -1087,6 +1087,8 @@ CREATE TABLE IF NOT EXISTS public.proxy_hosts (
     client_max_body_size character varying(20) DEFAULT ''::character varying,
     proxy_max_temp_file_size character varying(20) DEFAULT ''::character varying,
     is_favorite boolean DEFAULT false NOT NULL,
+    config_status character varying(20) DEFAULT 'ok'::character varying NOT NULL,
+    config_error text,
     CONSTRAINT chk_waf_anomaly_threshold CHECK (((waf_anomaly_threshold >= 1) AND (waf_anomaly_threshold <= 100))),
     CONSTRAINT chk_waf_paranoia_level CHECK (((waf_paranoia_level >= 1) AND (waf_paranoia_level <= 4)))
 );
@@ -2102,6 +2104,8 @@ ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS cache_static_only boolea
 ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS cache_ttl character varying(20) DEFAULT '7d'::character varying NOT NULL;
 ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS is_favorite boolean DEFAULT false NOT NULL;
 ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS proxy_request_buffering character varying(10) DEFAULT '';
+ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS config_status character varying(20) DEFAULT 'ok' NOT NULL;
+ALTER TABLE public.proxy_hosts ADD COLUMN IF NOT EXISTS config_error text;
 
 -- Add column comments
 COMMENT ON COLUMN public.proxy_hosts.cache_static_only IS 'Only cache static assets (js, css, images, fonts) - excludes API paths';

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"regexp"
@@ -55,6 +56,7 @@ type ProxyHostService struct {
 	uriBlockRepo           *repository.URIBlockRepository
 	exploitBlockRuleRepo   *repository.ExploitBlockRuleRepository
 	certRepo               *repository.CertificateRepository
+	systemLogRepo          *repository.SystemLogRepository
 	nginx                  NginxManager
 	certService            CertificateCreator // Optional: for creating certificates during clone
 }
@@ -74,6 +76,7 @@ func NewProxyHostService(
 	uriBlockRepo *repository.URIBlockRepository,
 	exploitBlockRuleRepo *repository.ExploitBlockRuleRepository,
 	certRepo *repository.CertificateRepository,
+	systemLogRepo *repository.SystemLogRepository,
 	nginx NginxManager,
 ) *ProxyHostService {
 	return &ProxyHostService{
@@ -91,6 +94,7 @@ func NewProxyHostService(
 		uriBlockRepo:           uriBlockRepo,
 		exploitBlockRuleRepo:   exploitBlockRuleRepo,
 		certRepo:               certRepo,
+		systemLogRepo:          systemLogRepo,
 		nginx:                  nginx,
 	}
 }
@@ -836,6 +840,11 @@ func (s *ProxyHostService) Update(ctx context.Context, id string, req *model.Upd
 		}
 	}
 
+	// Clear config error on successful update
+	_ = s.repo.UpdateConfigStatus(ctx, host.ID, "ok", "")
+	host.ConfigStatus = "ok"
+	host.ConfigError = ""
+
 	return host, nil
 }
 
@@ -1082,7 +1091,40 @@ func (s *ProxyHostService) SyncAllConfigsWithDetails(ctx context.Context) (*Sync
 	}
 	result.ReloadSuccess = true
 
+	// Update config_status for all hosts based on sync results
+	s.updateConfigStatuses(ctx, result)
+
 	return result, nil
+}
+
+// updateConfigStatuses updates DB config_status and writes system logs for failed hosts
+func (s *ProxyHostService) updateConfigStatuses(ctx context.Context, result *SyncAllResult) {
+	for _, h := range result.Hosts {
+		if h.Success {
+			if err := s.repo.UpdateConfigStatus(ctx, h.HostID, "ok", ""); err != nil {
+				log.Printf("[SyncConfigs] Failed to update config status for host %s: %v", h.HostID, err)
+			}
+		} else {
+			if err := s.repo.UpdateConfigStatus(ctx, h.HostID, "error", h.Error); err != nil {
+				log.Printf("[SyncConfigs] Failed to update config status for host %s: %v", h.HostID, err)
+			}
+			// Write system log for failed host
+			if s.systemLogRepo != nil {
+				details, _ := json.Marshal(map[string]string{
+					"host_id": h.HostID,
+					"domains": strings.Join(h.DomainNames, ", "),
+					"error":   h.Error,
+				})
+				_ = s.systemLogRepo.Create(ctx, &repository.SystemLog{
+					Source:    repository.SourceInternal,
+					Level:     repository.LevelWarn,
+					Message:   fmt.Sprintf("Proxy host config error: %s (%s)", strings.Join(h.DomainNames, ", "), h.Error),
+					Details:   details,
+					Component: "proxy_host_sync",
+				})
+			}
+		}
+	}
 }
 
 // RegenerateConfigsForCloudProviders regenerates nginx configs for proxy hosts

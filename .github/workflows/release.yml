@@ -404,11 +404,23 @@ jobs:
           # 2. Annotated tag 메시지 확인
           TAG_MSG=$(git tag -l --format='%(contents)' "$TAG_NAME" | tail -n +2 | sed '/^$/d')
 
-          # 우선순위: 기존 릴리즈 노트 > 태그 메시지
+          # 3. 이전 태그부터 현재까지 커밋 로그로 자동 생성
+          PREV_TAG_FOR_LOG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          AUTO_NOTES=""
+          if [ -n "$PREV_TAG_FOR_LOG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s" "$PREV_TAG_FOR_LOG..HEAD" | grep -v "^- release:" | grep -v "^- Merge")
+            if [ -n "$COMMITS" ]; then
+              AUTO_NOTES=$(printf "## What's Changed\n\n%s" "$COMMITS")
+            fi
+          fi
+
+          # 우선순위: 기존 릴리즈 노트 > 태그 메시지 > 자동 생성
           if [ -n "$EXISTING" ]; then
             NOTES="$EXISTING"
           elif [ -n "$TAG_MSG" ]; then
             NOTES="$TAG_MSG"
+          elif [ -n "$AUTO_NOTES" ]; then
+            NOTES="$AUTO_NOTES"
           else
             NOTES=""
           fi

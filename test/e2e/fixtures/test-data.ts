@@ -50,7 +50,7 @@ export const API_ENDPOINTS = {
   logs: '/api/v1/logs',
   logsAccess: '/api/v1/logs/access',
   logsWaf: '/api/v1/logs/waf',
-  logsAudit: '/api/v1/logs/audit',
+  logsAudit: '/api/v1/audit-logs',
   logsBotFilter: '/api/v1/logs/bot-filter',
   logsExploitBlocks: '/api/v1/logs/exploit-blocks',
   logsSystem: '/api/v1/logs/system',
@@ -69,9 +69,9 @@ export const API_ENDPOINTS = {
   apiTokens: '/api/v1/api-tokens',
 
   // Account
-  account: '/api/v1/account',
-  accountPassword: '/api/v1/account/password',
-  account2fa: '/api/v1/account/2fa',
+  account: '/api/v1/auth/account',
+  accountPassword: '/api/v1/auth/change-password',
+  account2fa: '/api/v1/auth/2fa',
 
   // Health
   health: '/health',

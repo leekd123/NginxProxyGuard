@@ -107,18 +107,29 @@ export class AccountSettingsPage extends BasePage {
   }
 
   /**
-   * Navigate to account settings page.
+   * Navigate to account settings by clicking the username button in header.
+   * Account settings is a modal opened from the header, not a routed page.
    */
   async goto(): Promise<void> {
-    await super.goto(ROUTES.settingsAccount);
+    // Navigate to dashboard first to ensure we're on an authenticated page
+    await super.goto('/dashboard');
+    await this.page.waitForLoadState('networkidle');
+    // Click the username button in the header to open Account Settings modal
+    const userButton = this.page.locator('header button').filter({
+      has: this.page.locator('.text-sm.font-medium'),
+    }).first();
+    await userButton.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
+    await userButton.click();
     await this.waitForLoad();
   }
 
   /**
-   * Wait for page to load.
+   * Wait for Account Settings modal to load.
    */
   async waitForLoad(): Promise<void> {
-    await this.page.waitForLoadState('networkidle');
+    // Wait for the modal overlay to appear
+    await this.page.locator('.fixed.inset-0, [role="dialog"]').first()
+      .waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
   }
 
   /**
@@ -129,9 +140,22 @@ export class AccountSettingsPage extends BasePage {
   }
 
   /**
-   * Change password.
+   * Switch to a tab in the Account Settings modal.
+   */
+  async switchTab(tabName: string): Promise<void> {
+    const tabButton = this.page.locator('.fixed.inset-0 button, [role="dialog"] button')
+      .filter({ hasText: new RegExp(tabName, 'i') }).first();
+    await tabButton.click();
+    await this.page.waitForTimeout(300);
+  }
+
+  /**
+   * Change password. Navigates to Password tab first.
    */
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    // Navigate to Password tab
+    await this.switchTab('Password');
+
     // Find password inputs more robustly
     const passwordInputs = await this.page.locator('input[type="password"]').all();
 
@@ -259,9 +283,11 @@ export class AccountSettingsPage extends BasePage {
   }
 
   /**
-   * Verify page is loaded correctly.
+   * Verify Account Settings modal is loaded correctly.
    */
   async expectAccountSettingsPage(): Promise<void> {
-    await expect(this.page).toHaveURL(/\/settings\/account/);
+    // Account settings is a modal, verify it's visible
+    const modal = this.page.locator('.fixed.inset-0, [role="dialog"]').first();
+    await expect(modal).toBeVisible({ timeout: TIMEOUTS.medium });
   }
 }

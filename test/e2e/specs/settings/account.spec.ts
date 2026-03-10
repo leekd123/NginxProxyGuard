@@ -59,6 +59,7 @@ test.describe('Account Settings', () => {
 
     test('should validate password confirmation', async ({ page }) => {
       await accountPage.goto();
+      await accountPage.switchTab('Password');
 
       // Fill mismatched passwords directly
       const passwordInputs = await page.locator('input[type="password"]').all();
@@ -80,6 +81,7 @@ test.describe('Account Settings', () => {
   test.describe('Two-Factor Authentication', () => {
     test('should display 2FA section', async () => {
       await accountPage.goto();
+      await accountPage.switchTab('Two-Factor');
 
       // 2FA section should be visible
       const twoFactorVisible = await accountPage.twoFactorSection.isVisible() ||
@@ -91,6 +93,7 @@ test.describe('Account Settings', () => {
 
     test('should show current 2FA status', async () => {
       await accountPage.goto();
+      await accountPage.switchTab('Two-Factor');
 
       const isEnabled = await accountPage.isTwoFactorEnabled();
       expect(typeof isEnabled).toBe('boolean');

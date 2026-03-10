@@ -28,7 +28,7 @@ export class ProxyHostListPage extends BasePage {
 
     // Page header
     this.pageTitle = page.locator('h1, h2').filter({ hasText: /proxy.*host/i }).first();
-    this.addHostButton = page.locator('button').filter({ hasText: /add|new|create/i }).first();
+    this.addHostButton = page.locator('button').filter({ hasText: /add\s*proxy\s*host/i }).first();
     this.searchInput = page.locator('input[type="search"], input[placeholder*="search"], input[placeholder*="Search"]');
     this.filterButton = page.locator('button').filter({ hasText: /filter/i });
 
@@ -163,30 +163,22 @@ export class ProxyHostListPage extends BasePage {
   }
 
   /**
-   * Delete a host by domain name.
+   * Delete a host by domain name. Uses native confirm() dialog.
    */
   async deleteHost(domain: string): Promise<void> {
-    const hostCard = this.getHostByDomain(domain);
-    // Look for delete button or three-dot menu
-    const deleteBtn = hostCard.locator('button').filter({ hasText: /delete/i }).first();
+    const hostRow = this.getHostByDomain(domain);
+    const deleteBtn = hostRow.locator('button[title="Delete"], button[title="삭제"]').first();
 
-    if (await deleteBtn.isVisible()) {
-      await deleteBtn.click();
-    } else {
-      // Try finding in dropdown menu
-      const menuBtn = hostCard.locator('button[title*="menu"], button:has(svg[class*="dots"])').first();
-      if (await menuBtn.isVisible()) {
-        await menuBtn.click();
-        await this.page.locator('button, [role="menuitem"]').filter({ hasText: /delete/i }).click();
-      }
-    }
+    // Set up dialog handler before clicking delete (native confirm dialog)
+    this.page.once('dialog', async (dialog) => {
+      await dialog.accept();
+    });
 
-    // Confirm deletion in dialog
-    const confirmBtn = this.page.locator('button').filter({ hasText: /confirm|yes|delete/i }).last();
-    await confirmBtn.click();
+    await deleteBtn.click();
 
     // Wait for host to be removed
-    await this.waitForHostsLoad();
+    await this.page.waitForTimeout(1000);
+    await this.page.waitForLoadState('networkidle');
   }
 
   /**

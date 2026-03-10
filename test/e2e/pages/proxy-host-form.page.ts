@@ -3,6 +3,9 @@ import { TIMEOUTS } from '../fixtures/test-data';
 
 /**
  * Proxy Host Form (modal) page object model.
+ * The form is a multi-tab wizard inside a .fixed.inset-0 modal overlay.
+ * In create mode, "Save/Create" only appears on the last tab; other tabs show "Next".
+ * In edit mode, "Save" is always visible.
  */
 export class ProxyHostFormPage {
   readonly page: Page;
@@ -10,10 +13,8 @@ export class ProxyHostFormPage {
   // Modal container
   readonly modal: Locator;
   readonly closeButton: Locator;
-  readonly saveButton: Locator;
-  readonly cancelButton: Locator;
 
-  // Tabs
+  // Tabs (have emoji prefixes like "🌐 Basic", "🔒 SSL/TLS")
   readonly basicTab: Locator;
   readonly sslTab: Locator;
   readonly securityTab: Locator;
@@ -54,29 +55,26 @@ export class ProxyHostFormPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Modal container - typically a fixed overlay
-    this.modal = page.locator('.fixed.inset-0, [role="dialog"], [class*="modal"]').first();
-    this.closeButton = this.modal.locator('button').filter({ has: page.locator('svg path[d*="M6 18L18 6"]') }).first();
-    this.saveButton = page.locator('button').filter({ hasText: /save|submit|create|update/i }).first();
-    this.cancelButton = page.locator('button').filter({ hasText: /cancel|close/i }).first();
+    // Modal container - the fixed overlay
+    this.modal = page.locator('.fixed.inset-0').first();
+    this.closeButton = this.modal.locator('button').filter({ has: page.locator('svg') }).first();
 
-    // Tabs - look for tab buttons
-    this.basicTab = page.locator('button, [role="tab"]').filter({ hasText: /basic/i }).first();
-    this.sslTab = page.locator('button, [role="tab"]').filter({ hasText: /ssl|https/i }).first();
-    this.securityTab = page.locator('button, [role="tab"]').filter({ hasText: /security/i }).first();
-    this.performanceTab = page.locator('button, [role="tab"]').filter({ hasText: /performance/i }).first();
-    this.advancedTab = page.locator('button, [role="tab"]').filter({ hasText: /advanced/i }).first();
-    this.protectionTab = page.locator('button, [role="tab"]').filter({ hasText: /protection/i }).first();
+    // Tabs - scoped to the form modal, handle emoji prefixes
+    const formArea = page.locator('.fixed.inset-0');
+    this.basicTab = formArea.locator('button, [role="tab"]').filter({ hasText: /basic/i }).first();
+    this.sslTab = formArea.locator('button, [role="tab"]').filter({ hasText: /ssl/i }).first();
+    this.securityTab = formArea.locator('button, [role="tab"]').filter({ hasText: /security/i }).first();
+    this.performanceTab = formArea.locator('button, [role="tab"]').filter({ hasText: /performance/i }).first();
+    this.advancedTab = formArea.locator('button, [role="tab"]').filter({ hasText: /advanced/i }).first();
+    this.protectionTab = formArea.locator('button, [role="tab"]').filter({ hasText: /protection/i }).first();
 
     // Basic tab fields
-    this.domainInput = page.locator('input[placeholder*="domain"], input[name*="domain"], input').filter({
-      has: page.locator('[placeholder*=".com"], [placeholder*="example"]'),
-    }).first().or(page.locator('input').first());
-    this.addDomainButton = page.locator('button').filter({ hasText: /add.*domain|\+/i }).first();
+    this.domainInput = page.locator('input[placeholder*="domain"], input[placeholder*="example.com"]').first();
+    this.addDomainButton = page.locator('button').filter({ hasText: /add.*domain/i }).first();
     this.domainChips = page.locator('[class*="chip"], [class*="tag"], .bg-slate-100');
     this.forwardSchemeSelect = page.locator('select, [role="combobox"]').filter({ has: page.locator('option:has-text("http"), [role="option"]:has-text("http")') }).first();
-    this.forwardHostInput = page.locator('input[placeholder*="host"], input[placeholder*="IP"], input[name*="forward_host"]').first();
-    this.forwardPortInput = page.locator('input[type="number"], input[placeholder*="port"], input[name*="forward_port"]').first();
+    this.forwardHostInput = page.locator('input[placeholder*="192.168"], input[placeholder*="container_name"]').first();
+    this.forwardPortInput = page.locator('input[placeholder="80"], input[inputmode="numeric"]').first();
     this.enabledToggle = page.locator('input[type="checkbox"], button[role="switch"]').first();
 
     // SSL tab fields
@@ -87,7 +85,7 @@ export class ProxyHostFormPage {
     this.hstsToggle = page.locator('input[type="checkbox"], button[role="switch"]').filter({ has: page.locator('text=/hsts/i') }).first();
     this.certificateSelect = page.locator('select[name*="certificate"], [role="combobox"]').filter({ has: page.locator('option:has-text("certificate"), [role="option"]:has-text("certificate")') }).first();
 
-    // Security tab fields - WAF toggle is inside a label with WAF text
+    // Security tab fields
     this.wafEnabledToggle = page.locator('label').filter({ hasText: /WAF.*Firewall|ModSecurity/i }).locator('input[type="checkbox"]').first();
     this.wafModeSelect = page.locator('select[name*="waf_mode"], [role="combobox"]').filter({ has: page.locator('text=/detection|blocking/i') }).first();
     this.paranoiaLevelSelect = page.locator('select[name*="paranoia"], [role="combobox"]').filter({ has: page.locator('text=/paranoia|level/i') }).first();
@@ -99,6 +97,27 @@ export class ProxyHostFormPage {
     this.saveProgressSpinner = page.locator('.animate-spin');
     this.saveSuccessMessage = page.locator('text=/success|saved|created/i');
     this.saveErrorMessage = page.locator('text=/error|failed/i, .text-red-500, .text-red-600');
+  }
+
+  /**
+   * Get the save/create button (scoped to modal).
+   */
+  get saveButton(): Locator {
+    return this.page.locator('.fixed.inset-0 button[type="submit"]').first();
+  }
+
+  /**
+   * Get the cancel button (scoped to modal).
+   */
+  get cancelButton(): Locator {
+    return this.page.locator('.fixed.inset-0 button').filter({ hasText: /cancel/i }).first();
+  }
+
+  /**
+   * Get the Next button (scoped to modal, for wizard navigation).
+   */
+  get nextButton(): Locator {
+    return this.page.locator('.fixed.inset-0 button').filter({ hasText: /next/i }).first();
   }
 
   /**
@@ -116,7 +135,7 @@ export class ProxyHostFormPage {
   }
 
   /**
-   * Switch to a specific tab.
+   * Switch to a specific tab. Uses force:true to handle sticky header interception.
    */
   async switchTab(tab: 'basic' | 'ssl' | 'security' | 'performance' | 'advanced' | 'protection'): Promise<void> {
     const tabMap = {
@@ -130,7 +149,7 @@ export class ProxyHostFormPage {
 
     const tabButton = tabMap[tab];
     if (await tabButton.isVisible()) {
-      await tabButton.click();
+      await tabButton.click({ force: true });
       await this.page.waitForTimeout(300); // Tab transition
     }
   }
@@ -139,42 +158,25 @@ export class ProxyHostFormPage {
    * Fill domain name(s).
    */
   async fillDomain(domain: string): Promise<void> {
-    // Find the domain input field more reliably
-    const domainInputs = await this.page.locator('input').all();
-    for (const input of domainInputs) {
-      const placeholder = await input.getAttribute('placeholder');
-      if (placeholder && (placeholder.toLowerCase().includes('domain') || placeholder.includes('.com'))) {
-        await input.fill(domain);
-        // Press Enter or click add button if available
-        const addBtn = this.page.locator('button').filter({ hasText: /add|\+/ }).first();
-        if (await addBtn.isVisible()) {
-          await addBtn.click();
-        } else {
-          await input.press('Enter');
-        }
-        return;
-      }
+    const domainInput = this.page.locator('input[placeholder*="example.com"], input[placeholder*="domain"]').first();
+    await domainInput.fill(domain);
+
+    // Click add domain button or press Enter
+    const addBtn = this.page.locator('button').filter({ hasText: /add.*domain/i }).first();
+    if (await addBtn.isVisible()) {
+      await addBtn.click();
+    } else {
+      await domainInput.press('Enter');
     }
-    // Fallback: fill first input
-    await this.domainInput.fill(domain);
   }
 
   /**
    * Fill forward host (upstream server).
    */
   async fillForwardHost(host: string): Promise<void> {
-    // Find input by placeholder text (e.g., "192.168.1.100 or container_name")
-    const hostInput = this.page.locator('input[placeholder*="192.168"], input[placeholder*="container_name"], input[placeholder*="forward"]').first();
-
+    const hostInput = this.page.locator('input[placeholder*="192.168"], input[placeholder*="container_name"]').first();
     if (await hostInput.isVisible()) {
       await hostInput.fill(host);
-    } else {
-      // Fallback: find by nearby label text
-      const section = this.page.locator('label').filter({ hasText: /Forward Host/i }).first();
-      const input = section.locator('..').locator('input[type="text"]').first();
-      if (await input.isVisible()) {
-        await input.fill(host);
-      }
     }
   }
 
@@ -182,17 +184,18 @@ export class ProxyHostFormPage {
    * Fill forward port.
    */
   async fillForwardPort(port: number): Promise<void> {
-    // Port input is type="text" with inputMode="numeric", find by label context
-    const portLabel = this.page.locator('label').filter({ hasText: /Forward Port/i }).first();
-    const portInput = portLabel.locator('..').locator('input').first();
-
+    const portInput = this.page.locator('input[placeholder="80"]').first();
     if (await portInput.isVisible()) {
+      await portInput.clear();
       await portInput.fill(port.toString());
     } else {
-      // Fallback: find input with inputMode="numeric"
-      const numericInput = this.page.locator('input[inputmode="numeric"]').first();
-      if (await numericInput.isVisible()) {
-        await numericInput.fill(port.toString());
+      // Fallback: find by label
+      const portLabel = this.page.locator('text=Forward Port').first();
+      const container = portLabel.locator('..');
+      const input = container.locator('input').first();
+      if (await input.isVisible()) {
+        await input.clear();
+        await input.fill(port.toString());
       }
     }
   }
@@ -273,7 +276,6 @@ export class ProxyHostFormPage {
    */
   async setWAFMode(mode: 'blocking' | 'detection'): Promise<void> {
     await this.switchTab('security');
-    // WAF mode uses radio buttons styled as cards, not a select element
     if (mode === 'blocking') {
       await this.page.locator('label').filter({ hasText: /blocking/i }).first().click();
     } else if (mode === 'detection') {
@@ -305,9 +307,27 @@ export class ProxyHostFormPage {
 
   /**
    * Save the proxy host configuration.
+   * In create mode, navigate to the last tab first (where the Create button appears).
+   * In edit mode, the Save button is always visible.
    */
   async save(): Promise<void> {
+    // If save/create button is not visible, we're in create mode on a non-last tab.
+    // Click "Next" until we reach the last tab where "Create" appears.
+    let attempts = 0;
+    while (!(await this.saveButton.isVisible()) && attempts < 6) {
+      const nextBtn = this.nextButton;
+      if (await nextBtn.isVisible()) {
+        await nextBtn.click();
+        await this.page.waitForTimeout(300);
+      } else {
+        break;
+      }
+      attempts++;
+    }
+
+    // Now click the save/create button
     await this.saveButton.click();
+
     // Wait for the form modal to close (happens after save progress completes)
     await this.modal.waitFor({ state: 'hidden', timeout: TIMEOUTS.long }).catch(() => null);
   }
@@ -316,8 +336,9 @@ export class ProxyHostFormPage {
    * Cancel and close the form.
    */
   async cancel(): Promise<void> {
-    if (await this.cancelButton.isVisible()) {
-      await this.cancelButton.click();
+    const cancelBtn = this.cancelButton;
+    if (await cancelBtn.isVisible()) {
+      await cancelBtn.click();
     } else {
       await this.closeButton.click();
     }
@@ -342,10 +363,14 @@ export class ProxyHostFormPage {
 
   /**
    * Verify form is displayed correctly.
+   * Note: Save button may not be visible on the first tab in create mode.
    */
   async expectForm(): Promise<void> {
     await expect(this.modal).toBeVisible();
-    await expect(this.saveButton).toBeVisible();
+    // Either save button or next button should be visible
+    const hasSave = await this.saveButton.isVisible();
+    const hasNext = await this.nextButton.isVisible();
+    expect(hasSave || hasNext).toBeTruthy();
   }
 
   /**

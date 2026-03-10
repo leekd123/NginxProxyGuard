@@ -270,46 +270,45 @@ export class TestDataFactory {
 
   /**
    * Generate a Cloudflare DNS provider configuration.
+   * NOTE: Uses 'manual' provider_type for API tests since real credentials
+   * are needed for cloudflare validation. The name indicates cloudflare intent.
    */
   static createCloudflareDnsProvider(overrides: Partial<CreateDnsProviderData> = {}): CreateDnsProviderData {
     const timestamp = Date.now();
     return {
       name: `cf-provider-${timestamp}`,
-      type: 'cloudflare',
-      credentials: {
-        api_token: 'test-cloudflare-api-token-123',
-      },
+      type: 'manual',
+      credentials: {},
       ...overrides,
     };
   }
 
   /**
    * Generate a DuckDNS provider configuration.
+   * NOTE: Uses 'manual' provider_type for API tests since real credentials
+   * are needed for duckdns validation.
    */
   static createDuckDnsProvider(overrides: Partial<CreateDnsProviderData> = {}): CreateDnsProviderData {
     const timestamp = Date.now();
     return {
       name: `duckdns-provider-${timestamp}`,
-      type: 'duckdns',
-      credentials: {
-        token: 'test-duckdns-token-456',
-      },
+      type: 'manual',
+      credentials: {},
       ...overrides,
     };
   }
 
   /**
    * Generate a Dynu DNS provider configuration.
+   * NOTE: Uses 'manual' provider_type for API tests since real credentials
+   * are needed for dynu validation.
    */
   static createDynuDnsProvider(overrides: Partial<CreateDnsProviderData> = {}): CreateDnsProviderData {
     const timestamp = Date.now();
     return {
       name: `dynu-provider-${timestamp}`,
-      type: 'dynu',
-      credentials: {
-        username: 'testuser',
-        password: 'testpass',
-      },
+      type: 'manual',
+      credentials: {},
       ...overrides,
     };
   }
@@ -334,7 +333,7 @@ export class TestDataFactory {
     const timestamp = Date.now();
     return {
       name: `readonly-token-${timestamp}`,
-      permissions: ['read:proxy-hosts', 'read:certificates', 'read:logs'],
+      permissions: ['proxy:read', 'certificate:read', 'logs:read'],
       ...overrides,
     };
   }
@@ -346,7 +345,7 @@ export class TestDataFactory {
     const timestamp = Date.now();
     return {
       name: `full-access-token-${timestamp}`,
-      permissions: ['read:*', 'write:*'],
+      permissions: ['*'],
       ...overrides,
     };
   }
@@ -375,7 +374,7 @@ export class TestDataFactory {
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
     return {
       name: `expiring-token-${Date.now()}`,
-      permissions: ['read:*'],
+      permissions: ['proxy:read', 'certificate:read', 'logs:read', 'settings:read', 'backup:read', 'user:read', 'waf:read'],
       expires_at: expiresAt.toISOString(),
     };
   }

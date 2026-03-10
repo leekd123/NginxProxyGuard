@@ -50,40 +50,37 @@ test.describe('DNS Provider Management', () => {
       await expect(dnsProviderPage.typeSelect).toBeVisible();
     });
 
-    test('should create Cloudflare provider', async () => {
-      const providerData = TestDataFactory.createCloudflareDnsProvider();
+    test('should create manual DNS provider via UI', async () => {
+      const providerName = `manual-ui-${Date.now()}`;
 
       await dnsProviderPage.goto();
-      await dnsProviderPage.createProvider(providerData);
+      await dnsProviderPage.clickAddProvider();
+      await dnsProviderPage.fillName(providerName);
+      await dnsProviderPage.selectType('manual');
+      await dnsProviderPage.save();
 
-      // Verify provider exists
+      // Verify provider exists after form closes
       await dnsProviderPage.waitForLoad();
-      const exists = await dnsProviderPage.providerExists(providerData.name);
+      const exists = await dnsProviderPage.providerExists(providerName);
       expect(exists).toBeTruthy();
     });
 
-    test('should create DuckDNS provider', async () => {
-      const providerData = TestDataFactory.createDuckDnsProvider();
-
+    test('should show Cloudflare fields when type selected', async () => {
       await dnsProviderPage.goto();
-      await dnsProviderPage.createProvider(providerData);
+      await dnsProviderPage.clickAddProvider();
+      await dnsProviderPage.selectType('cloudflare');
 
-      // Verify provider exists
-      await dnsProviderPage.waitForLoad();
-      const exists = await dnsProviderPage.providerExists(providerData.name);
-      expect(exists).toBeTruthy();
+      // API token field should be visible
+      await expect(dnsProviderPage.cloudflareApiTokenInput).toBeVisible();
     });
 
-    test('should create Dynu provider', async () => {
-      const providerData = TestDataFactory.createDynuDnsProvider();
-
+    test('should show DuckDNS fields when type selected', async () => {
       await dnsProviderPage.goto();
-      await dnsProviderPage.createProvider(providerData);
+      await dnsProviderPage.clickAddProvider();
+      await dnsProviderPage.selectType('duckdns');
 
-      // Verify provider exists
-      await dnsProviderPage.waitForLoad();
-      const exists = await dnsProviderPage.providerExists(providerData.name);
-      expect(exists).toBeTruthy();
+      // Token field should be visible
+      await expect(dnsProviderPage.duckdnsTokenInput).toBeVisible();
     });
 
     test('should validate required fields', async ({ page }) => {

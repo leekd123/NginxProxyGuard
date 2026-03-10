@@ -41,30 +41,32 @@ export class DnsProviderPage extends BasePage {
 
     // Page elements
     this.pageTitle = page.locator('h1, h2').filter({ hasText: /dns.*provider/i }).first();
-    this.addProviderButton = page.locator('button').filter({ hasText: /add|new|create/i }).first();
+    this.addProviderButton = page.locator('button').filter({ hasText: /add\s*provider|create\s*provider/i }).first();
     this.providerList = page.locator('main .space-y-4, main .grid, main > div').first();
-    this.providerItems = page.locator('[class*="card"], .bg-white.rounded, .dark\\:bg-slate-800').filter({
-      has: page.locator('text=/cloudflare|duckdns|dynu|route53|godaddy/i'),
+    // Provider list uses a table - each provider is a row in tbody
+    this.providerItems = page.locator('main table tbody tr').filter({
+      hasNot: page.locator('text=/no.*provider.*configured|no.*data/i'),
     });
     this.emptyState = page.locator('text=/no.*provider|empty|no.*data/i');
     this.loadingState = page.locator('.animate-spin, .animate-pulse');
 
     // Form modal
     this.modal = page.locator('.fixed.inset-0, [role="dialog"], [class*="modal"]').first();
-    this.nameInput = page.locator('input[name*="name"], input[placeholder*="name"]').first();
-    this.typeSelect = page.locator('select[name*="type"], [role="combobox"]').first();
-    this.saveButton = page.locator('button').filter({ hasText: /save|submit|create/i }).first();
-    this.cancelButton = page.locator('button').filter({ hasText: /cancel|close/i }).first();
-    this.testConnectionButton = page.locator('button').filter({ hasText: /test.*connect|verify/i }).first();
+    this.nameInput = page.locator('.fixed.inset-0 input[type="text"]').first();
+    this.typeSelect = page.locator('.fixed.inset-0 select, [role="dialog"] select').first();
+    this.saveButton = page.locator('.fixed.inset-0 button[type="submit"]').first();
+    this.cancelButton = page.locator('.fixed.inset-0 button').filter({ hasText: /cancel|close/i }).first();
+    this.testConnectionButton = page.locator('.fixed.inset-0 button').filter({ hasText: /test/i }).first();
 
-    // Provider-specific credentials
-    this.cloudflareApiTokenInput = page.locator('input[name*="api_token"], input[placeholder*="API Token"]').first();
-    this.cloudflareApiKeyInput = page.locator('input[name*="api_key"], input[placeholder*="API Key"]').first();
-    this.cloudflareEmailInput = page.locator('input[name*="email"], input[placeholder*="email"]').first();
-    this.duckdnsTokenInput = page.locator('input[name*="token"], input[placeholder*="Token"]').first();
-    this.dynuUsernameInput = page.locator('input[name*="username"], input[placeholder*="Username"]').first();
-    this.dynuPasswordInput = page.locator('input[name*="password"], input[placeholder*="Password"]').first();
-    this.genericCredentialInput = page.locator('input[type="text"], input[type="password"]');
+    // Provider-specific credentials (scoped to modal)
+    const modal = page.locator('.fixed.inset-0');
+    this.cloudflareApiTokenInput = modal.locator('input[type="password"]').first();
+    this.cloudflareApiKeyInput = modal.locator('input[type="password"]').nth(1);
+    this.cloudflareEmailInput = modal.locator('input[type="email"]').first();
+    this.duckdnsTokenInput = modal.locator('input[type="password"]').first();
+    this.dynuUsernameInput = modal.locator('input[type="password"]').first();
+    this.dynuPasswordInput = modal.locator('input[type="password"]').first();
+    this.genericCredentialInput = modal.locator('input[type="text"], input[type="password"]');
 
     // Status
     this.connectionStatus = page.locator('[class*="status"], .badge').first();
@@ -74,9 +76,23 @@ export class DnsProviderPage extends BasePage {
 
   /**
    * Navigate to DNS providers page.
+   * Navigate to the certificates section first, then click the DNS Providers tab
+   * to ensure the correct sub-tab content is displayed.
    */
   async goto(): Promise<void> {
-    await super.goto(ROUTES.certificatesDnsProviders);
+    // Navigate directly to dns-providers URL
+    await this.page.goto('/certificates/dns-providers');
+    await this.page.waitForLoadState('networkidle');
+    // Wait for the DNS Providers heading to appear (proves correct tab is active)
+    const dnsHeading = this.page.locator('h2').filter({ hasText: /dns\s*providers/i });
+    try {
+      await dnsHeading.waitFor({ state: 'visible', timeout: 5000 });
+    } catch {
+      // If heading didn't appear, click the DNS Providers tab manually
+      const dnsProvidersTab = this.page.locator('main button').filter({ hasText: /dns\s*providers/i }).first();
+      await dnsProvidersTab.click();
+      await this.page.waitForTimeout(1000);
+    }
     await this.waitForLoad();
   }
 
@@ -108,18 +124,19 @@ export class DnsProviderPage extends BasePage {
   }
 
   /**
-   * Get provider by name.
+   * Get provider table row by name.
    */
   getProviderByName(name: string): Locator {
-    return this.page.locator('[class*="card"], .bg-white.rounded, .dark\\:bg-slate-800').filter({
+    return this.page.locator('main table tbody tr').filter({
       hasText: name,
     }).first();
   }
 
   /**
-   * Fill provider name.
+   * Fill provider name (clears existing value first).
    */
   async fillName(name: string): Promise<void> {
+    await this.nameInput.clear();
     await this.nameInput.fill(name);
   }
 
@@ -242,36 +259,32 @@ export class DnsProviderPage extends BasePage {
   }
 
   /**
-   * Click on provider to edit.
+   * Click the Edit button for a provider to open edit form.
    */
   async clickProvider(name: string): Promise<void> {
     const provider = this.getProviderByName(name);
-    await provider.click();
+    const editBtn = provider.locator('button').filter({ hasText: /edit/i }).first();
+    await editBtn.click();
     await this.modal.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
   }
 
   /**
-   * Delete a provider.
+   * Delete a provider. The UI uses a native confirm() dialog.
    */
   async deleteProvider(name: string): Promise<void> {
     const provider = this.getProviderByName(name);
     const deleteBtn = provider.locator('button').filter({ hasText: /delete/i }).first();
 
-    if (await deleteBtn.isVisible()) {
-      await deleteBtn.click();
-    } else {
-      // Try dropdown menu
-      const menuBtn = provider.locator('button[title*="menu"], button:has(svg)').last();
-      if (await menuBtn.isVisible()) {
-        await menuBtn.click();
-        await this.page.locator('button, [role="menuitem"]').filter({ hasText: /delete/i }).click();
-      }
-    }
+    // Set up dialog handler before clicking delete (native confirm dialog)
+    this.page.once('dialog', async (dialog) => {
+      await dialog.accept();
+    });
 
-    // Confirm deletion
-    const confirmBtn = this.page.locator('button').filter({ hasText: /confirm|yes|delete/i }).last();
-    await confirmBtn.click();
-    await this.waitForLoad();
+    await deleteBtn.click();
+
+    // Wait for the provider to be removed from the list
+    await this.page.waitForTimeout(1000);
+    await this.page.waitForLoadState('networkidle');
   }
 
   /**

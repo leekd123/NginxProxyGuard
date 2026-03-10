@@ -220,16 +220,27 @@ export class APIHelper {
 
   /**
    * Clean up test proxy hosts (by domain pattern).
+   * Errors during cleanup are logged but not thrown, to avoid cascade failures.
    */
   async cleanupTestHosts(pattern: RegExp = /.+\.example\.local$/i): Promise<number> {
-    const hosts = await this.getProxyHosts();
+    let hosts: ProxyHostData[];
+    try {
+      hosts = await this.getProxyHosts();
+    } catch {
+      console.warn('cleanupTestHosts: failed to list proxy hosts, skipping cleanup');
+      return 0;
+    }
     let deleted = 0;
 
     for (const host of hosts) {
       const domains = host.domain_names || [];
       if (domains.some((d: string) => pattern.test(d))) {
-        await this.deleteProxyHost(host.id);
-        deleted++;
+        try {
+          await this.deleteProxyHost(host.id);
+          deleted++;
+        } catch (error) {
+          console.warn(`cleanupTestHosts: failed to delete host ${host.id}: ${error}`);
+        }
       }
     }
 
@@ -333,16 +344,27 @@ export class APIHelper {
 
   /**
    * Clean up test redirect hosts.
+   * Errors during cleanup are logged but not thrown, to avoid cascade failures.
    */
   async cleanupTestRedirectHosts(pattern: RegExp = /.+\.example\.local$/i): Promise<number> {
-    const hosts = await this.getRedirectHosts();
+    let hosts: RedirectHostData[];
+    try {
+      hosts = await this.getRedirectHosts();
+    } catch {
+      console.warn('cleanupTestRedirectHosts: failed to list redirect hosts, skipping cleanup');
+      return 0;
+    }
     let deleted = 0;
 
     for (const host of hosts) {
       const domains = host.domain_names || [];
       if (domains.some((d: string) => pattern.test(d))) {
-        await this.deleteRedirectHost(host.id);
-        deleted++;
+        try {
+          await this.deleteRedirectHost(host.id);
+          deleted++;
+        } catch (error) {
+          console.warn(`cleanupTestRedirectHosts: failed to delete host ${host.id}: ${error}`);
+        }
       }
     }
 
@@ -374,9 +396,15 @@ export class APIHelper {
    * Create a new DNS provider.
    */
   async createDnsProvider(data: CreateDnsProviderData): Promise<DnsProviderData> {
+    // Map 'type' to 'provider_type' for API compatibility
+    const apiData = {
+      name: data.name,
+      provider_type: data.provider_type || data.type,
+      credentials: data.credentials,
+    };
     const response = await this.request.post(API_ENDPOINTS.dnsProviders, {
       headers: this.getHeaders(),
-      data,
+      data: apiData,
     });
 
     if (!response.ok()) {
@@ -419,15 +447,26 @@ export class APIHelper {
 
   /**
    * Clean up test DNS providers.
+   * Errors during cleanup are logged but not thrown, to avoid cascade failures.
    */
-  async cleanupTestDnsProviders(pattern: RegExp = /test-.*-e2e|e2e-test/i): Promise<number> {
-    const providers = await this.getDnsProviders();
+  async cleanupTestDnsProviders(pattern: RegExp = /test-.*-e2e|e2e-test|cf-provider-|duckdns-provider-|dynu-provider-|manual-ui-|updated-|should-not-be-saved|test-invalid|test-connection/i): Promise<number> {
+    let providers: DnsProviderData[];
+    try {
+      providers = await this.getDnsProviders();
+    } catch {
+      console.warn('cleanupTestDnsProviders: failed to list DNS providers, skipping cleanup');
+      return 0;
+    }
     let deleted = 0;
 
     for (const provider of providers) {
       if (pattern.test(provider.name)) {
-        await this.deleteDnsProvider(provider.id);
-        deleted++;
+        try {
+          await this.deleteDnsProvider(provider.id);
+          deleted++;
+        } catch (error) {
+          console.warn(`cleanupTestDnsProviders: failed to delete provider ${provider.id}: ${error}`);
+        }
       }
     }
 
@@ -504,15 +543,26 @@ export class APIHelper {
 
   /**
    * Clean up test access lists.
+   * Errors during cleanup are logged but not thrown, to avoid cascade failures.
    */
   async cleanupTestAccessLists(pattern: RegExp = /test-acl-|e2e-acl/i): Promise<number> {
-    const lists = await this.getAccessLists();
+    let lists: AccessListData[];
+    try {
+      lists = await this.getAccessLists();
+    } catch {
+      console.warn('cleanupTestAccessLists: failed to list access lists, skipping cleanup');
+      return 0;
+    }
     let deleted = 0;
 
     for (const list of lists) {
       if (pattern.test(list.name)) {
-        await this.deleteAccessList(list.id);
-        deleted++;
+        try {
+          await this.deleteAccessList(list.id);
+          deleted++;
+        } catch (error) {
+          console.warn(`cleanupTestAccessLists: failed to delete list ${list.id}: ${error}`);
+        }
       }
     }
 
@@ -616,15 +666,26 @@ export class APIHelper {
 
   /**
    * Clean up test API tokens.
+   * Errors during cleanup are logged but not thrown, to avoid cascade failures.
    */
-  async cleanupTestApiTokens(pattern: RegExp = /test-.*token|e2e-token/i): Promise<number> {
-    const tokens = await this.getApiTokens();
+  async cleanupTestApiTokens(pattern: RegExp = /test-.*token|e2e-token|readonly-token-|full-access-token-|expiring-token-|specific-perms-|copy-test-/i): Promise<number> {
+    let tokens: ApiTokenData[];
+    try {
+      tokens = await this.getApiTokens();
+    } catch {
+      console.warn('cleanupTestApiTokens: failed to list API tokens, skipping cleanup');
+      return 0;
+    }
     let deleted = 0;
 
     for (const token of tokens) {
       if (pattern.test(token.name)) {
-        await this.revokeApiToken(token.id);
-        deleted++;
+        try {
+          await this.revokeApiToken(token.id);
+          deleted++;
+        } catch (error) {
+          console.warn(`cleanupTestApiTokens: failed to revoke token ${token.id}: ${error}`);
+        }
       }
     }
 
@@ -698,7 +759,7 @@ export class APIHelper {
    * Update account password.
    */
   async updatePassword(currentPassword: string, newPassword: string): Promise<void> {
-    const response = await this.request.put(API_ENDPOINTS.accountPassword, {
+    const response = await this.request.post(API_ENDPOINTS.accountPassword, {
       headers: this.getHeaders(),
       data: { current_password: currentPassword, new_password: newPassword },
     });
@@ -898,8 +959,10 @@ export class APIHelper {
   async getAuditLogs(params?: LogQueryParams): Promise<AuditLogEntry[]> {
     return this.withRetry(async () => {
       const queryParams = new URLSearchParams();
-      if (params?.page) queryParams.set('page', params.page.toString());
-      if (params?.perPage) queryParams.set('per_page', params.perPage.toString());
+      if (params?.perPage) queryParams.set('limit', params.perPage.toString());
+      if (params?.page && params?.perPage) {
+        queryParams.set('offset', ((params.page - 1) * params.perPage).toString());
+      }
 
       const response = await this.request.get(`${API_ENDPOINTS.logsAudit}?${queryParams}`, {
         headers: this.getHeaders(),
@@ -910,7 +973,8 @@ export class APIHelper {
       }
 
       const result = await response.json();
-      return result.data || [];
+      // API returns { logs: [...], total, limit, offset }
+      return result.logs || [];
     }, 'getAuditLogs');
   }
 }
@@ -1007,7 +1071,8 @@ export interface DnsProviderData {
 
 export interface CreateDnsProviderData {
   name: string;
-  type: string;
+  type?: string;
+  provider_type?: string;
   credentials: Record<string, string>;
 }
 
@@ -1145,11 +1210,16 @@ export interface LogEntry {
 
 export interface AuditLogEntry {
   id: number;
-  user_id: number;
+  username: string;
+  user_id?: number;
   action: string;
+  action_label?: string;
   resource_type: string;
-  resource_id?: number;
+  resource_id?: string;
+  resource_name?: string;
   details?: Record<string, unknown>;
   ip_address: string;
-  timestamp: string;
+  user_agent?: string;
+  timestamp?: string;
+  created_at?: string;
 }

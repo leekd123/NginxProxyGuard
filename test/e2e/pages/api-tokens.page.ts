@@ -4,39 +4,43 @@ import { ROUTES, TIMEOUTS } from '../fixtures/test-data';
 
 /**
  * API Tokens management page object model.
+ * API Tokens is a tab inside the Account Settings modal (.fixed.inset-0).
+ * The create form is inline (toggled by "Create Token" button), not a sub-modal.
+ * After creation, a separate modal (.fixed.inset-0 z-50) shows the generated token.
+ * Token list uses a <table> with <tr> rows.
+ * Delete and revoke use native confirm() dialogs.
  */
 export class ApiTokensPage extends BasePage {
-  // Page elements
-  readonly pageTitle: Locator;
-  readonly addTokenButton: Locator;
+  // The Account Settings modal container
+  readonly accountModal: Locator;
 
-  // Token list
-  readonly tokenList: Locator;
-  readonly tokenItems: Locator;
+  // Token list (table-based)
+  readonly tokenTable: Locator;
+  readonly tokenRows: Locator;
   readonly emptyState: Locator;
   readonly loadingState: Locator;
 
-  // Form modal elements
-  readonly modal: Locator;
+  // Create form (inline, not a modal)
+  readonly createTokenToggleButton: Locator;
+  readonly addTokenButton: Locator; // Alias for createTokenToggleButton
   readonly nameInput: Locator;
-  readonly expiresAtInput: Locator;
-  readonly saveButton: Locator;
+  readonly createSubmitButton: Locator;
   readonly cancelButton: Locator;
 
-  // Permissions
-  readonly permissionsSection: Locator;
-  readonly readAllCheckbox: Locator;
-  readonly writeAllCheckbox: Locator;
+  // Permission group buttons (read_only, operator, admin)
+  readonly readOnlyGroupButton: Locator;
+  readonly operatorGroupButton: Locator;
+  readonly fullAccessGroupButton: Locator;
+
+  // Individual permission checkboxes
   readonly permissionCheckboxes: Locator;
 
-  // Token display (after creation)
+  // Token display modal (shown after creation)
+  readonly tokenDisplayModal: Locator;
   readonly tokenDisplay: Locator;
   readonly copyTokenButton: Locator;
   readonly tokenWarning: Locator;
-
-  // Actions
-  readonly revokeButton: Locator;
-  readonly deleteButton: Locator;
+  readonly closeTokenModalButton: Locator;
 
   // Status messages
   readonly successMessage: Locator;
@@ -45,43 +49,42 @@ export class ApiTokensPage extends BasePage {
   constructor(page: Page) {
     super(page);
 
-    // Page elements
-    this.pageTitle = page.locator('h1, h2').filter({ hasText: /api.*token/i }).first();
-    this.addTokenButton = page.locator('button').filter({ hasText: /add|new|create|generate/i }).first();
+    // Account Settings modal
+    this.accountModal = page.locator('.fixed.inset-0').first();
 
-    // Token list
-    this.tokenList = page.locator('main .space-y-4, main .grid, main > div, table').first();
-    this.tokenItems = page.locator('[class*="card"], tr, .bg-white.rounded, .dark\\:bg-slate-800').filter({
-      has: page.locator('text=/token|•••|\\*\\*\\*/i'),
+    // Token list - table rows within the API tokens tab
+    this.tokenTable = page.locator('table').first();
+    this.tokenRows = page.locator('table tbody tr').filter({
+      hasNot: page.locator('td[colspan]'), // Exclude the "no tokens" empty state row
     });
-    this.emptyState = page.locator('text=/no.*token|empty|no.*data/i');
-    this.loadingState = page.locator('.animate-spin, .animate-pulse');
+    this.emptyState = page.locator('td[colspan]').filter({ hasText: /no.*token|empty/i });
+    this.loadingState = page.locator('.animate-spin');
 
-    // Form modal
-    this.modal = page.locator('.fixed.inset-0, [role="dialog"], [class*="modal"]').first();
-    this.nameInput = page.locator('input[name*="name"], input[placeholder*="name"]').first();
-    this.expiresAtInput = page.locator('input[type="date"], input[name*="expires"]').first();
-    this.saveButton = page.locator('button').filter({ hasText: /save|create|generate/i }).first();
-    this.cancelButton = page.locator('button').filter({ hasText: /cancel|close/i }).first();
+    // Create form toggle button - the "Create Token" button in the header area
+    this.createTokenToggleButton = page.locator('button').filter({ hasText: /create.*token/i }).first();
+    this.addTokenButton = this.createTokenToggleButton; // Alias
 
-    // Permissions
-    this.permissionsSection = page.locator('section, div').filter({ hasText: /permission/i }).first();
-    this.readAllCheckbox = page.locator('input[type="checkbox"]').filter({
-      has: page.locator('text=/read.*all|all.*read/i'),
-    }).first();
-    this.writeAllCheckbox = page.locator('input[type="checkbox"]').filter({
-      has: page.locator('text=/write.*all|all.*write/i'),
-    }).first();
-    this.permissionCheckboxes = page.locator('input[type="checkbox"][name*="permission"]');
+    // Form fields (visible when create form is shown)
+    this.nameInput = page.locator('input[placeholder="My API Token"], input[placeholder*="API Token"]').first();
+    // Submit button is also "Create Token" text but is type="submit" inside the form
+    this.createSubmitButton = page.locator('form button[type="submit"]').first();
+    this.cancelButton = page.locator('form button[type="button"]').filter({ hasText: /cancel/i }).first();
 
-    // Token display
-    this.tokenDisplay = page.locator('code, [class*="token-display"], input[readonly]').first();
-    this.copyTokenButton = page.locator('button').filter({ hasText: /copy/i }).first();
-    this.tokenWarning = page.locator('text=/save.*token|only.*shown.*once|copy.*now/i');
+    // Permission group buttons
+    this.readOnlyGroupButton = page.locator('form button[type="button"]').filter({ hasText: /read only/i }).first();
+    this.operatorGroupButton = page.locator('form button[type="button"]').filter({ hasText: /operator/i }).first();
+    this.fullAccessGroupButton = page.locator('form button[type="button"]').filter({ hasText: /full access/i }).first();
 
-    // Actions
-    this.revokeButton = page.locator('button').filter({ hasText: /revoke/i }).first();
-    this.deleteButton = page.locator('button').filter({ hasText: /delete/i }).first();
+    // Individual permission checkboxes (inside the form's permission grid)
+    this.permissionCheckboxes = page.locator('form input[type="checkbox"]');
+
+    // Token display modal (appears after successful creation, separate .fixed.inset-0 with z-50)
+    this.tokenDisplayModal = page.locator('.fixed.inset-0.bg-black');
+    this.tokenDisplay = page.locator('.fixed.inset-0 code').first();
+    this.copyTokenButton = page.locator('.fixed.inset-0 button').filter({ hasText: /copy/i }).first();
+    this.tokenWarning = page.locator('text=/won.*t.*shown.*again|copy.*safe/i');
+    // The token display modal has z-50 and bg-black, its Close button is at the bottom
+    this.closeTokenModalButton = page.locator('.fixed.inset-0.bg-black button, .fixed.inset-0 .bg-black button').filter({ hasText: /close|닫기/i }).first();
 
     // Status messages
     this.successMessage = page.locator('text=/success|created|generated/i');
@@ -89,45 +92,62 @@ export class ApiTokensPage extends BasePage {
   }
 
   /**
-   * Navigate to API tokens page.
+   * Navigate to API tokens by opening Account Settings modal and clicking API Tokens tab.
    */
   async goto(): Promise<void> {
-    await super.goto(ROUTES.settingsApiTokens);
+    await super.goto('/dashboard');
+    await this.page.waitForLoadState('networkidle');
+    // Click the username button in the header to open Account Settings modal
+    const userButton = this.page.locator('header button').filter({
+      has: this.page.locator('.text-sm.font-medium'),
+    }).first();
+    await userButton.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
+    await userButton.click();
+    // Wait for modal to appear
+    await this.page.locator('.fixed.inset-0, [role="dialog"]').first()
+      .waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
+    // Click the API Tokens tab
+    const apiTokensTab = this.page.locator('button').filter({ hasText: /api.*token/i }).first();
+    await apiTokensTab.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
+    await apiTokensTab.click();
     await this.waitForLoad();
   }
 
   /**
-   * Wait for page to load.
+   * Wait for API tokens content to load.
    */
   async waitForLoad(): Promise<void> {
     await this.page.waitForLoadState('networkidle');
+    // Wait for either the token table or create button to appear
     await Promise.race([
-      this.tokenItems.first().waitFor({ state: 'visible', timeout: TIMEOUTS.medium }).catch(() => null),
-      this.emptyState.waitFor({ state: 'visible', timeout: TIMEOUTS.medium }).catch(() => null),
-      this.addTokenButton.waitFor({ state: 'visible', timeout: TIMEOUTS.medium }),
+      this.tokenTable.waitFor({ state: 'visible', timeout: TIMEOUTS.medium }).catch(() => null),
+      this.createTokenToggleButton.waitFor({ state: 'visible', timeout: TIMEOUTS.medium }).catch(() => null),
+      this.page.waitForTimeout(TIMEOUTS.short),
     ]);
   }
 
   /**
-   * Click add token button.
+   * Click the "Create Token" button to show the inline create form.
+   * The form is inline (not a sub-modal).
    */
   async clickAddToken(): Promise<void> {
-    await this.addTokenButton.click();
-    await this.modal.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
+    await this.createTokenToggleButton.click();
+    // Wait for the form to appear (name input becomes visible)
+    await this.nameInput.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
   }
 
   /**
-   * Get count of tokens.
+   * Get count of tokens in the table (excluding empty state row).
    */
   async getTokenCount(): Promise<number> {
-    return await this.tokenItems.count();
+    return await this.tokenRows.count();
   }
 
   /**
-   * Get token by name.
+   * Get token row by name.
    */
   getTokenByName(name: string): Locator {
-    return this.page.locator('[class*="card"], tr, .bg-white.rounded, .dark\\:bg-slate-800').filter({
+    return this.page.locator('table tbody tr').filter({
       hasText: name,
     }).first();
   }
@@ -140,45 +160,55 @@ export class ApiTokensPage extends BasePage {
   }
 
   /**
-   * Set token expiration date.
+   * Select Read Only permission group.
    */
-  async setExpiration(date: string): Promise<void> {
-    if (await this.expiresAtInput.isVisible()) {
-      await this.expiresAtInput.fill(date);
-    }
+  async selectReadOnlyGroup(): Promise<void> {
+    await this.readOnlyGroupButton.click();
   }
 
   /**
-   * Select read all permission.
+   * Select Operator permission group.
+   */
+  async selectOperatorGroup(): Promise<void> {
+    await this.operatorGroupButton.click();
+  }
+
+  /**
+   * Select Full Access permission group.
+   */
+  async selectFullAccessGroup(): Promise<void> {
+    await this.fullAccessGroupButton.click();
+  }
+
+  /**
+   * Select Read All permission (uses the Read Only group button).
    */
   async selectReadAllPermission(): Promise<void> {
-    if (await this.readAllCheckbox.isVisible()) {
-      const isChecked = await this.readAllCheckbox.isChecked();
-      if (!isChecked) {
-        await this.readAllCheckbox.click();
-      }
-    }
+    await this.selectReadOnlyGroup();
   }
 
   /**
-   * Select write all permission.
+   * Select Write All permission (uses the Full Access group button).
    */
   async selectWriteAllPermission(): Promise<void> {
-    if (await this.writeAllCheckbox.isVisible()) {
-      const isChecked = await this.writeAllCheckbox.isChecked();
-      if (!isChecked) {
-        await this.writeAllCheckbox.click();
-      }
-    }
+    await this.selectFullAccessGroup();
   }
 
   /**
-   * Select specific permissions.
+   * Select specific individual permissions by toggling checkboxes.
+   * Permission format: "proxy:read", "certificate:write", etc.
    */
   async selectPermissions(permissions: string[]): Promise<void> {
     for (const permission of permissions) {
-      const checkbox = this.page.locator(`input[type="checkbox"][value*="${permission}"], label:has-text("${permission}") input[type="checkbox"]`).first();
-      if (await checkbox.isVisible()) {
+      // Find the checkbox label containing the permission text
+      const label = this.page.locator('form label').filter({
+        has: this.page.locator('input[type="checkbox"]'),
+      }).filter({
+        hasText: new RegExp(permission.replace(':', '.*'), 'i'),
+      }).first();
+
+      if (await label.isVisible()) {
+        const checkbox = label.locator('input[type="checkbox"]');
         const isChecked = await checkbox.isChecked();
         if (!isChecked) {
           await checkbox.click();
@@ -188,7 +218,7 @@ export class ApiTokensPage extends BasePage {
   }
 
   /**
-   * Create a new API token.
+   * Create a new API token with full workflow.
    */
   async createToken(config: {
     name: string;
@@ -200,16 +230,12 @@ export class ApiTokensPage extends BasePage {
     await this.clickAddToken();
     await this.fillName(config.name);
 
-    if (config.expiresAt) {
-      await this.setExpiration(config.expiresAt);
-    }
-
     if (config.readAll) {
-      await this.selectReadAllPermission();
+      await this.selectReadOnlyGroup();
     }
 
     if (config.writeAll) {
-      await this.selectWriteAllPermission();
+      await this.selectFullAccessGroup();
     }
 
     if (config.permissions?.length) {
@@ -218,12 +244,41 @@ export class ApiTokensPage extends BasePage {
 
     await this.save();
 
-    // Try to capture the generated token
-    if (await this.tokenDisplay.isVisible()) {
+    // Try to capture the generated token from the display modal
+    try {
+      await this.tokenDisplay.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
       return await this.tokenDisplay.textContent();
+    } catch {
+      return null;
     }
+  }
 
-    return null;
+  /**
+   * Submit the create form.
+   */
+  async save(): Promise<void> {
+    await this.createSubmitButton.click();
+    // Wait for either token display modal or error
+    await Promise.race([
+      this.tokenDisplay.waitFor({ state: 'visible', timeout: TIMEOUTS.medium }).catch(() => null),
+      this.errorMessage.first().waitFor({ state: 'visible', timeout: TIMEOUTS.medium }).catch(() => null),
+      this.page.waitForTimeout(3000),
+    ]);
+  }
+
+  /**
+   * Close the token display modal (after viewing/copying the generated token).
+   */
+  async closeTokenModal(): Promise<void> {
+    await this.closeTokenModalButton.click();
+    await this.page.waitForTimeout(300);
+  }
+
+  /**
+   * Close the modal (alias for closeTokenModal for backward compat).
+   */
+  async closeModal(): Promise<void> {
+    await this.closeTokenModal();
   }
 
   /**
@@ -236,95 +291,57 @@ export class ApiTokensPage extends BasePage {
   }
 
   /**
-   * Save the form.
-   */
-  async save(): Promise<void> {
-    await this.saveButton.click();
-    // Wait for either token display or error
-    await Promise.race([
-      this.tokenDisplay.waitFor({ state: 'visible', timeout: TIMEOUTS.medium }).catch(() => null),
-      this.errorMessage.waitFor({ state: 'visible', timeout: TIMEOUTS.medium }).catch(() => null),
-    ]);
-  }
-
-  /**
-   * Close the modal (after viewing token).
-   */
-  async closeModal(): Promise<void> {
-    const closeBtn = this.modal.locator('button').filter({ hasText: /close|done|ok/i }).first();
-    if (await closeBtn.isVisible()) {
-      await closeBtn.click();
-    } else if (await this.cancelButton.isVisible()) {
-      await this.cancelButton.click();
-    }
-    await this.modal.waitFor({ state: 'hidden', timeout: TIMEOUTS.short });
-  }
-
-  /**
-   * Revoke a token by name.
+   * Revoke a token by name. Uses native confirm() dialog.
    */
   async revokeToken(name: string): Promise<void> {
-    const token = this.getTokenByName(name);
-    const revokeBtn = token.locator('button').filter({ hasText: /revoke/i }).first();
+    const tokenRow = this.getTokenByName(name);
+    // Match both English "Revoke" and Korean "비활성화"
+    const revokeBtn = tokenRow.locator('button').filter({ hasText: /revoke|비활성화/i }).first();
 
-    if (await revokeBtn.isVisible()) {
-      await revokeBtn.click();
-    } else {
-      // Try dropdown menu
-      const menuBtn = token.locator('button[title*="menu"], button:has(svg)').last();
-      if (await menuBtn.isVisible()) {
-        await menuBtn.click();
-        await this.page.locator('button, [role="menuitem"]').filter({ hasText: /revoke/i }).click();
-      }
-    }
+    // Use Playwright's dialog event handler to accept the confirm dialog
+    this.page.once('dialog', dialog => dialog.accept());
+    await revokeBtn.click();
 
-    // Confirm revocation
-    const confirmBtn = this.page.locator('button').filter({ hasText: /confirm|yes|revoke/i }).last();
-    if (await confirmBtn.isVisible()) {
-      await confirmBtn.click();
-    }
-    await this.waitForLoad();
+    // Wait for the mutation to complete
+    await this.page.waitForTimeout(3000);
+    await this.page.waitForLoadState('networkidle');
   }
 
   /**
-   * Delete a token by name.
+   * Delete a token by name. Uses native confirm() dialog.
    */
   async deleteToken(name: string): Promise<void> {
-    const token = this.getTokenByName(name);
-    const deleteBtn = token.locator('button').filter({ hasText: /delete/i }).first();
+    const tokenRow = this.getTokenByName(name);
+    // Match both English "Delete" and Korean "삭제"
+    const deleteBtn = tokenRow.locator('button').filter({ hasText: /delete|삭제/i }).first();
 
-    if (await deleteBtn.isVisible()) {
-      await deleteBtn.click();
-    } else {
-      const menuBtn = token.locator('button[title*="menu"], button:has(svg)').last();
-      if (await menuBtn.isVisible()) {
-        await menuBtn.click();
-        await this.page.locator('button, [role="menuitem"]').filter({ hasText: /delete/i }).click();
-      }
-    }
+    // Use Playwright's dialog event handler to accept the confirm dialog
+    this.page.once('dialog', dialog => dialog.accept());
+    await deleteBtn.click();
 
-    // Confirm deletion
-    const confirmBtn = this.page.locator('button').filter({ hasText: /confirm|yes|delete/i }).last();
-    if (await confirmBtn.isVisible()) {
-      await confirmBtn.click();
-    }
-    await this.waitForLoad();
+    // Wait for the token row to be removed from the DOM after React Query refetches
+    await tokenRow.waitFor({ state: 'hidden', timeout: TIMEOUTS.medium });
   }
 
   /**
-   * Check if token exists.
+   * Check if token exists in the table.
    */
   async tokenExists(name: string): Promise<boolean> {
-    return await this.getTokenByName(name).isVisible();
+    const tokenRow = this.getTokenByName(name);
+    return await tokenRow.isVisible();
   }
 
   /**
-   * Get token last used time.
+   * Get token last used text.
    */
   async getTokenLastUsed(name: string): Promise<string | null> {
-    const token = this.getTokenByName(name);
-    const lastUsed = token.locator('text=/last.*used|used/i').first();
-    return await lastUsed.textContent();
+    const tokenRow = this.getTokenByName(name);
+    // Last used is in the 4th column (index 3)
+    const lastUsedCell = tokenRow.locator('td').nth(3);
+    if (await lastUsedCell.isVisible()) {
+      return await lastUsedCell.textContent();
+    }
+    return null;
   }
 
   /**
@@ -335,11 +352,14 @@ export class ApiTokensPage extends BasePage {
   }
 
   /**
-   * Verify page is loaded correctly.
+   * Verify API Tokens section is loaded correctly inside the Account Settings modal.
    */
   async expectApiTokensPage(): Promise<void> {
-    await expect(this.page).toHaveURL(/\/settings\/api-tokens/);
-    await expect(this.addTokenButton).toBeVisible({ timeout: TIMEOUTS.medium });
+    await expect(this.accountModal).toBeVisible({ timeout: TIMEOUTS.medium });
+    // Either the create button or the token table should be visible
+    const hasCreateBtn = await this.createTokenToggleButton.isVisible();
+    const hasTable = await this.tokenTable.isVisible();
+    expect(hasCreateBtn || hasTable).toBeTruthy();
   }
 
   /**

@@ -60,6 +60,10 @@
   "form": {
     "addTitle": "프록시 호스트 추가",
     "editTitle": "프록시 호스트 수정",
+    "configError": {
+      "title": "Nginx 설정 오류",
+      "hint": "설정을 수정한 후 저장하면 자동으로 다시 적용됩니다."
+    },
     "tabs": {
       "basic": "기본",
       "ssl": "SSL/TLS",

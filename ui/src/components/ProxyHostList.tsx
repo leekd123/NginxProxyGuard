@@ -1257,13 +1257,14 @@ export function ProxyHostList({ onEdit, onAdd }: ProxyHostListProps) {
                   {/* Status */}
                   <td className="px-4 py-3 text-center">
                     {host.config_status === 'error' ? (
-                      <span
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 cursor-help"
+                      <button
+                        onClick={() => onEdit(host)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                         title={host.config_error ? t('list.status.errorTooltip', { error: host.config_error }) : t('list.status.error')}
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                         {t('list.status.error')}
-                      </span>
+                      </button>
                     ) : (
                       <button
                         onClick={() => handleToggle(host)}

@@ -60,6 +60,10 @@
   "form": {
     "addTitle": "Add Proxy Host",
     "editTitle": "Edit Proxy Host",
+    "configError": {
+      "title": "Nginx Config Error",
+      "hint": "Fix the settings and save to re-apply the configuration."
+    },
     "tabs": {
       "basic": "Basic",
       "ssl": "SSL/TLS",

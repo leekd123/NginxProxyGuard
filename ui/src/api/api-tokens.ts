@@ -77,6 +77,11 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     throw new Error(error.error || 'Request failed');
   }
 
+  // Handle 204 No Content responses (e.g., DELETE, revoke)
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return undefined;
+  }
+
   return response.json();
 }
 

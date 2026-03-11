@@ -46,9 +46,13 @@ export async function createProxyHost(
 
 export async function updateProxyHost(
   id: string,
-  data: UpdateProxyHostRequest
+  data: UpdateProxyHostRequest,
+  skipNginx = false
 ): Promise<ProxyHost> {
-  return apiPut<ProxyHost>(`${API_BASE}/proxy-hosts/${id}`, data)
+  const url = skipNginx
+    ? `${API_BASE}/proxy-hosts/${id}?skip_nginx=true`
+    : `${API_BASE}/proxy-hosts/${id}`
+  return apiPut<ProxyHost>(url, data)
 }
 
 export async function deleteProxyHost(id: string): Promise<void> {
@@ -71,6 +75,10 @@ export async function testNginxConfig(): Promise<{ status: string; message: stri
 
 export async function syncAllConfigs(): Promise<{ message: string }> {
   return apiPost<{ message: string }>(`${API_BASE}/proxy-hosts/sync`)
+}
+
+export async function regenerateHostConfig(id: string): Promise<{ message: string }> {
+  return apiPost<{ message: string }>(`${API_BASE}/proxy-hosts/${id}/regenerate`)
 }
 
 export async function testProxyHostConfig(

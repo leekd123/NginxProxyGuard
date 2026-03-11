@@ -95,18 +95,18 @@ var attackPatterns = map[string]struct {
 func (h *WAFTestHandler) Test(w http.ResponseWriter, r *http.Request) {
 	var req WAFTestRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		httpJSONError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if req.TargetURL == "" {
-		http.Error(w, "target_url is required", http.StatusBadRequest)
+		httpJSONError(w, "target_url is required", http.StatusBadRequest)
 		return
 	}
 
 	pattern, exists := attackPatterns[req.AttackType]
 	if !exists {
-		http.Error(w, "Invalid attack_type", http.StatusBadRequest)
+		httpJSONError(w, "Invalid attack_type", http.StatusBadRequest)
 		return
 	}
 
@@ -135,7 +135,7 @@ func (h *WAFTestHandler) Test(w http.ResponseWriter, r *http.Request) {
 	// Parse the base URL to get host info
 	parsedURL, err := url.Parse(req.TargetURL)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid target URL: %v", err), http.StatusBadRequest)
+		httpJSONError(w, fmt.Sprintf("Invalid target URL: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -143,7 +143,7 @@ func (h *WAFTestHandler) Test(w http.ResponseWriter, r *http.Request) {
 	// This is important for path traversal tests
 	httpReq, err := http.NewRequest("GET", testURL, nil)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create request: %v", err), http.StatusInternalServerError)
+		httpJSONErrorWithDetails(w, "Failed to create request", http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -237,19 +237,19 @@ func (h *WAFTestHandler) TestAll(w http.ResponseWriter, r *http.Request) {
 		HostHeader string `json:"host_header,omitempty"` // Custom Host header for Docker internal testing
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		httpJSONError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if req.TargetURL == "" {
-		http.Error(w, "target_url is required", http.StatusBadRequest)
+		httpJSONError(w, "target_url is required", http.StatusBadRequest)
 		return
 	}
 
 	// Parse the base URL to get host info
 	parsedURL, err := url.Parse(req.TargetURL)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid target URL: %v", err), http.StatusBadRequest)
+		httpJSONError(w, fmt.Sprintf("Invalid target URL: %v", err), http.StatusBadRequest)
 		return
 	}
 

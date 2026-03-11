@@ -152,7 +152,15 @@ func (h *ProxyHostHandler) Update(c echo.Context) error {
 		})
 	}
 
-	host, err := h.service.Update(c.Request().Context(), id, &req)
+	skipNginx := c.QueryParam("skip_nginx") == "true"
+
+	var host *model.ProxyHost
+	var err error
+	if skipNginx {
+		host, err = h.service.UpdateDBOnly(c.Request().Context(), id, &req)
+	} else {
+		host, err = h.service.Update(c.Request().Context(), id, &req)
+	}
 	if err != nil {
 		errMsg := err.Error()
 		// Handle specific error cases with appropriate HTTP status codes
@@ -237,6 +245,27 @@ func (h *ProxyHostHandler) SyncAll(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, result)
+}
+
+func (h *ProxyHostHandler) Regenerate(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "id is required",
+		})
+	}
+
+	if err := h.service.RegenerateConfigForHost(c.Request().Context(), id); err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") {
+			return notFoundError(c, "Proxy host")
+		}
+		return internalError(c, "regenerate proxy host config", err)
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Config regenerated successfully",
+	})
 }
 
 // TestHost tests a proxy host configuration by making HTTP requests

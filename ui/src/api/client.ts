@@ -30,12 +30,25 @@ export async function handleResponse<T>(response: Response): Promise<T> {
       clearToken()
       window.location.reload()
     }
+    // Gateway errors return HTML (nginx error page), not JSON
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      throw new ApiError(
+        response.status === 504
+          ? 'Request timed out - the server is taking too long to respond'
+          : 'Server temporarily unavailable - please try again',
+        response.status
+      )
+    }
     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
     const message = errorData.error || `HTTP ${response.status}`
     const details = errorData.details
     throw new ApiError(message, response.status, details)
   }
-  return response.json()
+  // Handle empty responses (204 No Content)
+  if (response.status === 204) {
+    return {} as T
+  }
+  return response.json().catch(() => ({} as T))
 }
 
 export async function apiGet<T>(url: string): Promise<T> {
@@ -73,8 +86,16 @@ export async function apiDelete(url: string): Promise<void> {
       clearToken()
       window.location.reload()
     }
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      throw new ApiError(
+        response.status === 504
+          ? 'Request timed out - the server is taking too long to respond'
+          : 'Server temporarily unavailable - please try again',
+        response.status
+      )
+    }
     const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-    throw new Error(error.error || `HTTP ${response.status}`)
+    throw new ApiError(error.error || `HTTP ${response.status}`, response.status, error.details)
   }
 }
 

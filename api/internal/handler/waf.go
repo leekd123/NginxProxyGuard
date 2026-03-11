@@ -164,7 +164,7 @@ func (h *WAFHandler) GetHostConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if host == nil {
-		http.Error(w, "Proxy host not found", http.StatusNotFound)
+		httpJSONError(w, "Proxy host not found", http.StatusNotFound)
 		return
 	}
 
@@ -203,7 +203,7 @@ func (h *WAFHandler) DisableRule(w http.ResponseWriter, r *http.Request) {
 	path = strings.TrimPrefix(path, "/api/waf/hosts/")
 	parts := strings.Split(path, "/")
 	if len(parts) < 3 {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
+		httpJSONError(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
 
@@ -212,7 +212,7 @@ func (h *WAFHandler) DisableRule(w http.ResponseWriter, r *http.Request) {
 
 	ruleID, err := strconv.Atoi(ruleIDStr)
 	if err != nil {
-		http.Error(w, "Invalid rule ID", http.StatusBadRequest)
+		httpJSONError(w, "Invalid rule ID", http.StatusBadRequest)
 		return
 	}
 
@@ -231,7 +231,7 @@ func (h *WAFHandler) DisableRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if existing != nil {
-		http.Error(w, "Rule already disabled", http.StatusConflict)
+		httpJSONError(w, "Rule already disabled", http.StatusConflict)
 		return
 	}
 
@@ -256,7 +256,7 @@ func (h *WAFHandler) DisableRule(w http.ResponseWriter, r *http.Request) {
 	// Regenerate nginx config for this host
 	if err := h.regenerateHostConfig(ctx, proxyHostID); err != nil {
 		log.Printf("[WAF] Failed to regenerate nginx config for host %s: %v", proxyHostID, err)
-		http.Error(w, "Rule exclusion saved but failed to apply nginx config: "+err.Error(), http.StatusInternalServerError)
+		httpJSONErrorWithDetails(w, "Rule exclusion saved but failed to apply nginx config", http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -279,16 +279,16 @@ func (h *WAFHandler) DisableRuleByHost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		httpJSONError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if req.Host == "" {
-		http.Error(w, "Host is required", http.StatusBadRequest)
+		httpJSONError(w, "Host is required", http.StatusBadRequest)
 		return
 	}
 	if req.RuleID == 0 {
-		http.Error(w, "Rule ID is required", http.StatusBadRequest)
+		httpJSONError(w, "Rule ID is required", http.StatusBadRequest)
 		return
 	}
 
@@ -305,7 +305,7 @@ func (h *WAFHandler) DisableRuleByHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if host == nil {
-		http.Error(w, "Proxy host not found for domain: "+hostLookup+". Use global disable instead.", http.StatusNotFound)
+		httpJSONError(w, "Proxy host not found for domain: "+hostLookup+". Use global disable instead.", http.StatusNotFound)
 		return
 	}
 
@@ -318,7 +318,7 @@ func (h *WAFHandler) DisableRuleByHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if existing != nil {
-		http.Error(w, "Rule already disabled for this host", http.StatusConflict)
+		httpJSONError(w, "Rule already disabled for this host", http.StatusConflict)
 		return
 	}
 
@@ -351,7 +351,7 @@ func (h *WAFHandler) DisableRuleByHost(w http.ResponseWriter, r *http.Request) {
 	// Regenerate nginx config for this host
 	if err := h.regenerateHostConfig(ctx, proxyHostID); err != nil {
 		log.Printf("[WAF] Failed to regenerate nginx config for host %s (via DisableRuleByHost): %v", proxyHostID, err)
-		http.Error(w, "Rule exclusion saved but failed to apply nginx config: "+err.Error(), http.StatusInternalServerError)
+		httpJSONErrorWithDetails(w, "Rule exclusion saved but failed to apply nginx config", http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -370,7 +370,7 @@ func (h *WAFHandler) EnableRule(w http.ResponseWriter, r *http.Request) {
 	path = strings.TrimPrefix(path, "/api/waf/hosts/")
 	parts := strings.Split(path, "/")
 	if len(parts) < 3 {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
+		httpJSONError(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
 
@@ -379,7 +379,7 @@ func (h *WAFHandler) EnableRule(w http.ResponseWriter, r *http.Request) {
 
 	ruleID, err := strconv.Atoi(ruleIDStr)
 	if err != nil {
-		http.Error(w, "Invalid rule ID", http.StatusBadRequest)
+		httpJSONError(w, "Invalid rule ID", http.StatusBadRequest)
 		return
 	}
 
@@ -408,7 +408,7 @@ func (h *WAFHandler) EnableRule(w http.ResponseWriter, r *http.Request) {
 	// Regenerate nginx config for this host
 	if err := h.regenerateHostConfig(ctx, proxyHostID); err != nil {
 		log.Printf("[WAF] Failed to regenerate nginx config for host %s (via EnableRule): %v", proxyHostID, err)
-		http.Error(w, "Rule exclusion removed but failed to apply nginx config: "+err.Error(), http.StatusInternalServerError)
+		httpJSONErrorWithDetails(w, "Rule exclusion removed but failed to apply nginx config", http.StatusInternalServerError, err.Error())
 		return
 	}
 

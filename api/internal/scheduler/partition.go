@@ -36,10 +36,10 @@ func NewPartitionScheduler(
 func (s *PartitionScheduler) Start() {
 	log.Println("[PartitionScheduler] Started (checks daily at midnight for partitions and retention)")
 
-	// Initial check on startup
-	s.run()
-
 	go func() {
+		// Run initial check in background (non-blocking to avoid delaying server startup)
+		s.run()
+
 		// Calculate time until next midnight
 		now := time.Now()
 		nextMidnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())

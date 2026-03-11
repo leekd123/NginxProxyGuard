@@ -77,7 +77,7 @@ func (h *WAFHandler) DisableGlobalRule(w http.ResponseWriter, r *http.Request) {
 
 	ruleID, err := strconv.Atoi(ruleIDStr)
 	if err != nil {
-		http.Error(w, "Invalid rule ID", http.StatusBadRequest)
+		httpJSONError(w, "Invalid rule ID", http.StatusBadRequest)
 		return
 	}
 
@@ -95,7 +95,7 @@ func (h *WAFHandler) DisableGlobalRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if existing != nil {
-		http.Error(w, "Rule already disabled globally", http.StatusConflict)
+		httpJSONError(w, "Rule already disabled globally", http.StatusConflict)
 		return
 	}
 
@@ -140,7 +140,7 @@ func (h *WAFHandler) EnableGlobalRule(w http.ResponseWriter, r *http.Request) {
 
 	ruleID, err := strconv.Atoi(ruleIDStr)
 	if err != nil {
-		http.Error(w, "Invalid rule ID", http.StatusBadRequest)
+		httpJSONError(w, "Invalid rule ID", http.StatusBadRequest)
 		return
 	}
 

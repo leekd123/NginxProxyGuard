@@ -479,7 +479,8 @@ func main() {
 			proxyHosts.GET("/:id", proxyHostHandler.GetByID)
 			proxyHosts.PUT("/:id", proxyHostHandler.Update)
 			proxyHosts.DELETE("/:id", proxyHostHandler.Delete)
-			proxyHosts.POST("/:id/test", proxyHostHandler.TestHost)
+			proxyHosts.POST("/:id/regenerate", proxyHostHandler.Regenerate)
+		proxyHosts.POST("/:id/test", proxyHostHandler.TestHost)
 			proxyHosts.POST("/:id/clone", proxyHostHandler.Clone)
 			proxyHosts.PUT("/:id/favorite", proxyHostHandler.ToggleFavorite)
 		}

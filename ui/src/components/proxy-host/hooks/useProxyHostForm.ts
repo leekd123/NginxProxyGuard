@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createProxyHost, updateProxyHost, syncAllConfigs } from '../../../api/proxy-hosts'
+import { createProxyHost, updateProxyHost, regenerateHostConfig } from '../../../api/proxy-hosts'
 import { listCertificates, createCertificate, getCertificate } from '../../../api/certificates'
 import { listDNSProviders } from '../../../api/dns-providers'
 import { getAccessLists, getGeoRestriction, setGeoRestriction, deleteGeoRestriction, getCountryCodes } from '../../../api/access'
@@ -303,11 +303,17 @@ export function useProxyHostForm(host: ProxyHost | null | undefined, onClose: ()
 
       if (additionalSettingsPromises.length > 0) {
         await Promise.all(additionalSettingsPromises)
-        // Final sync to regenerate config with all additional settings and reload nginx
+        // Regenerate config for this specific host to apply additional settings
         try {
-          await syncAllConfigs()
+          await regenerateHostConfig(newHost.id)
         } catch (err) {
-          console.error('Failed to sync configs after additional settings:', err)
+          const isApiError = err instanceof ApiError
+          setSaveProgress(prev => ({
+            ...prev,
+            error: err instanceof Error ? err.message : 'Failed to apply nginx config',
+            errorDetails: isApiError ? (err as ApiError).details || null : null,
+          }))
+          return
         }
       }
 
@@ -328,16 +334,16 @@ export function useProxyHostForm(host: ProxyHost | null | undefined, onClose: ()
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: CreateProxyHostRequest }) =>
-      updateProxyHost(id, data),
+      updateProxyHost(id, data, true),
     onMutate: () => {
-      // Step 0: Server processing (DB + config + test + reload)
+      // Step 0: Server processing (DB save, nginx deferred to regenerate)
       setSaveProgress(prev => ({ ...prev, currentStep: 0 }))
     },
     onSuccess: async (_, variables) => {
       // Step 1: Additional settings
       setSaveProgress(prev => ({ ...prev, currentStep: 1 }))
 
-      // Save additional settings in PARALLEL for speed (skip nginx reload since main API already did it)
+      // Save additional settings in PARALLEL (all skip nginx reload)
       const additionalSettingsPromises = [
         // Bot filter (skip reload)
         updateBotFilter(variables.id, botFilterData, true)
@@ -345,7 +351,6 @@ export function useProxyHostForm(host: ProxyHost | null | undefined, onClose: ()
           .catch(err => console.error('Failed to save bot filter:', err)),
 
         // Geo restriction (skip reload)
-        // Save if geo blocking enabled OR if priority allow IPs exist
         (async () => {
           try {
             const hasGeoBlocking = geoData.enabled && geoData.countries.length > 0
@@ -362,7 +367,6 @@ export function useProxyHostForm(host: ProxyHost | null | undefined, onClose: ()
                 challenge_mode: geoData.challenge_mode,
               }, true)
             } else if (existingGeoRestriction) {
-              // Only delete if no geo blocking AND no priority allow IPs
               await deleteGeoRestriction(variables.id, true)
             }
             queryClient.invalidateQueries({ queryKey: ['geoRestriction', variables.id] })
@@ -383,11 +387,17 @@ export function useProxyHostForm(host: ProxyHost | null | undefined, onClose: ()
 
       await Promise.all(additionalSettingsPromises)
 
-      // Final sync to regenerate config with all additional settings and reload nginx
+      // Single nginx config generation + test + reload (all settings applied at once)
       try {
-        await syncAllConfigs()
+        await regenerateHostConfig(variables.id)
       } catch (err) {
-        console.error('Failed to sync configs after additional settings:', err)
+        const isApiError = err instanceof ApiError
+        setSaveProgress(prev => ({
+          ...prev,
+          error: err instanceof Error ? err.message : 'Failed to apply nginx config',
+          errorDetails: isApiError ? (err as ApiError).details || null : null,
+        }))
+        return
       }
 
       // Step 2: Complete

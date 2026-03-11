@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -71,16 +72,30 @@ func forbiddenError(c echo.Context) error {
 	})
 }
 
+// httpJSONError writes a JSON error response for standard http.ResponseWriter handlers
+func httpJSONError(w http.ResponseWriter, message string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
+}
+
+// httpJSONErrorWithDetails writes a JSON error response with details
+func httpJSONErrorWithDetails(w http.ResponseWriter, message string, status int, details string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(ErrorResponse{Error: message, Details: details})
+}
+
 // httpInternalError is for standard http.ResponseWriter handlers
 func httpInternalError(w http.ResponseWriter, operation string, err error) {
 	log.Printf("[ERROR] %s: %v", operation, err)
-	http.Error(w, ErrMsgInternalError, http.StatusInternalServerError)
+	httpJSONErrorWithDetails(w, ErrMsgInternalError, http.StatusInternalServerError, err.Error())
 }
 
 // httpDatabaseError is for standard http.ResponseWriter handlers
 func httpDatabaseError(w http.ResponseWriter, operation string, err error) {
 	log.Printf("[DB ERROR] %s: %v", operation, err)
-	http.Error(w, ErrMsgDatabaseError, http.StatusInternalServerError)
+	httpJSONErrorWithDetails(w, ErrMsgDatabaseError, http.StatusInternalServerError, err.Error())
 }
 
 // validationError returns a validation error with field details

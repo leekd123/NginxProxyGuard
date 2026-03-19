@@ -35,7 +35,7 @@ func (h *SettingsHandler) ListBackups(c echo.Context) error {
 		perPage = 20
 	}
 
-	result, err := h.backupRepo.List(c.Request().Context(), page, perPage)
+	result, err := h.settingsService.ListBackups(c.Request().Context(), page, perPage)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
@@ -213,7 +213,7 @@ func (h *SettingsHandler) addDirectoryToTar(tw *tar.Writer, srcDir, destPrefix s
 func (h *SettingsHandler) GetBackup(c echo.Context) error {
 	id := c.Param("id")
 
-	backup, err := h.backupRepo.GetByID(c.Request().Context(), id)
+	backup, err := h.settingsService.GetBackup(c.Request().Context(), id)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
@@ -227,7 +227,7 @@ func (h *SettingsHandler) GetBackup(c echo.Context) error {
 func (h *SettingsHandler) DownloadBackup(c echo.Context) error {
 	id := c.Param("id")
 
-	backup, err := h.backupRepo.GetByID(c.Request().Context(), id)
+	backup, err := h.settingsService.GetBackup(c.Request().Context(), id)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
@@ -257,19 +257,10 @@ func (h *SettingsHandler) DownloadBackup(c echo.Context) error {
 func (h *SettingsHandler) DeleteBackup(c echo.Context) error {
 	id := c.Param("id")
 
-	backup, err := h.backupRepo.GetByID(c.Request().Context(), id)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-	}
-	if backup == nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "backup not found"})
-	}
-
-	// Delete file
-	os.Remove(backup.FilePath)
-
-	// Delete record
-	if err := h.backupRepo.Delete(c.Request().Context(), id); err != nil {
+	if err := h.settingsService.DeleteBackup(c.Request().Context(), id); err != nil {
+		if err.Error() == "backup not found" {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "backup not found"})
+		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
@@ -277,7 +268,7 @@ func (h *SettingsHandler) DeleteBackup(c echo.Context) error {
 }
 
 func (h *SettingsHandler) GetBackupStats(c echo.Context) error {
-	stats, err := h.backupRepo.GetStats(c.Request().Context())
+	stats, err := h.settingsService.GetBackupStats(c.Request().Context())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}

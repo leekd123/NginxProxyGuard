@@ -14,19 +14,9 @@ import (
 func (h *SecurityHandler) GetBotFilter(c echo.Context) error {
 	proxyHostID := c.Param("proxyHostId")
 
-	filter, err := h.botFilterRepo.GetByProxyHostID(c.Request().Context(), proxyHostID)
+	filter, err := h.securityService.GetBotFilter(c.Request().Context(), proxyHostID)
 	if err != nil {
 		return databaseError(c, "get bot filter", err)
-	}
-
-	if filter == nil {
-		filter = &model.BotFilter{
-			ProxyHostID:        proxyHostID,
-			Enabled:            false,
-			BlockBadBots:       true,
-			BlockAIBots:        false,
-			AllowSearchEngines: true,
-		}
 	}
 
 	return c.JSON(http.StatusOK, filter)
@@ -41,25 +31,13 @@ func (h *SecurityHandler) UpsertBotFilter(c echo.Context) error {
 		return badRequestError(c, "Invalid request body")
 	}
 
-	filter, err := h.botFilterRepo.Upsert(c.Request().Context(), proxyHostID, &req)
+	filter, err := h.securityService.UpsertBotFilter(c.Request().Context(), proxyHostID, &req, skipReload)
 	if err != nil {
-		return databaseError(c, "upsert bot filter", err)
+		return internalError(c, "upsert bot filter", err)
 	}
 
-	// Get host info for audit and nginx config regeneration
-	host, _ := h.proxyHostRepo.GetByID(c.Request().Context(), proxyHostID)
-	hostName := proxyHostID
-	if host != nil && len(host.DomainNames) > 0 {
-		hostName = host.DomainNames[0]
-	}
-
-	// Regenerate nginx config to apply bot filter changes (skip if requested)
-	if !skipReload && host != nil && host.Enabled && h.proxyHostService != nil {
-		// Trigger a dummy update to regenerate nginx config with bot filter settings
-		if _, err := h.proxyHostService.Update(c.Request().Context(), proxyHostID, &model.UpdateProxyHostRequest{}); err != nil {
-			return internalError(c, "regenerate nginx config for bot filter", err)
-		}
-	}
+	// Get host name for audit
+	hostName := h.securityService.GetHostName(c.Request().Context(), proxyHostID)
 
 	// Audit log
 	auditCtx := service.ContextWithAudit(c.Request().Context(), c)
@@ -71,14 +49,10 @@ func (h *SecurityHandler) UpsertBotFilter(c echo.Context) error {
 func (h *SecurityHandler) DeleteBotFilter(c echo.Context) error {
 	proxyHostID := c.Param("proxyHostId")
 
-	// Get host info for audit
-	host, _ := h.proxyHostRepo.GetByID(c.Request().Context(), proxyHostID)
-	hostName := proxyHostID
-	if host != nil && len(host.DomainNames) > 0 {
-		hostName = host.DomainNames[0]
-	}
+	// Get host name for audit
+	hostName := h.securityService.GetHostName(c.Request().Context(), proxyHostID)
 
-	if err := h.botFilterRepo.Delete(c.Request().Context(), proxyHostID); err != nil {
+	if err := h.securityService.DeleteBotFilter(c.Request().Context(), proxyHostID); err != nil {
 		return databaseError(c, "delete bot filter", err)
 	}
 
@@ -104,24 +78,9 @@ func (h *SecurityHandler) GetKnownBots(c echo.Context) error {
 func (h *SecurityHandler) GetSecurityHeaders(c echo.Context) error {
 	proxyHostID := c.Param("proxyHostId")
 
-	headers, err := h.secHeadersRepo.GetByProxyHostID(c.Request().Context(), proxyHostID)
+	headers, err := h.securityService.GetSecurityHeaders(c.Request().Context(), proxyHostID)
 	if err != nil {
 		return databaseError(c, "get security headers", err)
-	}
-
-	if headers == nil {
-		headers = &model.SecurityHeaders{
-			ProxyHostID:           proxyHostID,
-			Enabled:               false,
-			HSTSEnabled:           true,
-			HSTSMaxAge:            31536000,
-			HSTSIncludeSubdomains: true,
-			HSTSPreload:           false,
-			XFrameOptions:         "SAMEORIGIN",
-			XContentTypeOptions:   true,
-			XXSSProtection:        true,
-			ReferrerPolicy:        "strict-origin-when-cross-origin",
-		}
 	}
 
 	return c.JSON(http.StatusOK, headers)
@@ -135,17 +94,13 @@ func (h *SecurityHandler) UpsertSecurityHeaders(c echo.Context) error {
 		return badRequestError(c, "Invalid request body")
 	}
 
-	headers, err := h.secHeadersRepo.Upsert(c.Request().Context(), proxyHostID, &req)
+	headers, err := h.securityService.UpsertSecurityHeaders(c.Request().Context(), proxyHostID, &req)
 	if err != nil {
 		return databaseError(c, "upsert security headers", err)
 	}
 
 	// Audit log
-	host, _ := h.proxyHostRepo.GetByID(c.Request().Context(), proxyHostID)
-	hostName := proxyHostID
-	if host != nil && len(host.DomainNames) > 0 {
-		hostName = host.DomainNames[0]
-	}
+	hostName := h.securityService.GetHostName(c.Request().Context(), proxyHostID)
 	auditCtx := service.ContextWithAudit(c.Request().Context(), c)
 	h.audit.LogSecurityFeatureUpdate(auditCtx, "security_headers", hostName, headers.Enabled, nil)
 
@@ -155,14 +110,10 @@ func (h *SecurityHandler) UpsertSecurityHeaders(c echo.Context) error {
 func (h *SecurityHandler) DeleteSecurityHeaders(c echo.Context) error {
 	proxyHostID := c.Param("proxyHostId")
 
-	// Get host info for audit
-	host, _ := h.proxyHostRepo.GetByID(c.Request().Context(), proxyHostID)
-	hostName := proxyHostID
-	if host != nil && len(host.DomainNames) > 0 {
-		hostName = host.DomainNames[0]
-	}
+	// Get host name for audit
+	hostName := h.securityService.GetHostName(c.Request().Context(), proxyHostID)
 
-	if err := h.secHeadersRepo.Delete(c.Request().Context(), proxyHostID); err != nil {
+	if err := h.securityService.DeleteSecurityHeaders(c.Request().Context(), proxyHostID); err != nil {
 		return databaseError(c, "delete security headers", err)
 	}
 
@@ -181,35 +132,16 @@ func (h *SecurityHandler) ApplySecurityHeaderPreset(c echo.Context) error {
 	proxyHostID := c.Param("proxyHostId")
 	preset := c.Param("preset")
 
-	presetConfig, ok := model.SecurityHeaderPresets[preset]
-	if !ok {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid preset"})
-	}
-
-	req := &model.CreateSecurityHeadersRequest{
-		Enabled:               &presetConfig.Enabled,
-		HSTSEnabled:           &presetConfig.HSTSEnabled,
-		HSTSMaxAge:            presetConfig.HSTSMaxAge,
-		HSTSIncludeSubdomains: &presetConfig.HSTSIncludeSubdomains,
-		HSTSPreload:           &presetConfig.HSTSPreload,
-		XFrameOptions:         presetConfig.XFrameOptions,
-		XContentTypeOptions:   &presetConfig.XContentTypeOptions,
-		XXSSProtection:        &presetConfig.XXSSProtection,
-		ReferrerPolicy:        presetConfig.ReferrerPolicy,
-		ContentSecurityPolicy: presetConfig.ContentSecurityPolicy,
-	}
-
-	headers, err := h.secHeadersRepo.Upsert(c.Request().Context(), proxyHostID, req)
+	headers, err := h.securityService.ApplySecurityHeaderPreset(c.Request().Context(), proxyHostID, preset)
 	if err != nil {
+		if err.Error() == "invalid preset: "+preset {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid preset"})
+		}
 		return databaseError(c, "apply security header preset", err)
 	}
 
 	// Audit log
-	host, _ := h.proxyHostRepo.GetByID(c.Request().Context(), proxyHostID)
-	hostName := proxyHostID
-	if host != nil && len(host.DomainNames) > 0 {
-		hostName = host.DomainNames[0]
-	}
+	hostName := h.securityService.GetHostName(c.Request().Context(), proxyHostID)
 	auditCtx := service.ContextWithAudit(c.Request().Context(), c)
 	h.audit.LogSecurityFeatureUpdate(auditCtx, "security_headers", hostName, headers.Enabled, map[string]interface{}{
 		"preset": preset,

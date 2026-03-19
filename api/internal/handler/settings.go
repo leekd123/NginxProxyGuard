@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -14,57 +13,44 @@ import (
 )
 
 type SettingsHandler struct {
-	settingsRepo     *repository.GlobalSettingsRepository
-	dashboardRepo    *repository.DashboardRepository
+	settingsService *service.SettingsService
+	audit           *service.AuditService
+	// These fields are still needed for backup/restore operations
+	// which involve complex file I/O that belongs in the handler layer
 	backupRepo       *repository.BackupRepository
 	proxyHostRepo    *repository.ProxyHostRepository
 	redirectHostRepo *repository.RedirectHostRepository
 	certificateRepo  *repository.CertificateRepository
 	wafRepo          *repository.WAFRepository
 	nginxManager     *nginx.Manager
-	backupPath       string
-	audit            *service.AuditService
-	dockerStats      *service.DockerStatsService
 	proxyHostService *service.ProxyHostService
+	backupPath       string
 	redisCache       *cache.RedisClient
 }
 
 func NewSettingsHandler(
-	settingsRepo *repository.GlobalSettingsRepository,
-	dashboardRepo *repository.DashboardRepository,
-	backupRepo *repository.BackupRepository,
-	proxyHostRepo *repository.ProxyHostRepository,
-	redirectHostRepo *repository.RedirectHostRepository,
-	certificateRepo *repository.CertificateRepository,
-	wafRepo *repository.WAFRepository,
-	nginxManager *nginx.Manager,
-	backupPath string,
+	settingsService *service.SettingsService,
 	audit *service.AuditService,
-	dockerStats *service.DockerStatsService,
-	proxyHostService *service.ProxyHostService,
-	redisCache *cache.RedisClient,
 ) *SettingsHandler {
 	return &SettingsHandler{
-		settingsRepo:     settingsRepo,
-		dashboardRepo:    dashboardRepo,
-		backupRepo:       backupRepo,
-		proxyHostRepo:    proxyHostRepo,
-		redirectHostRepo: redirectHostRepo,
-		certificateRepo:  certificateRepo,
-		wafRepo:          wafRepo,
-		nginxManager:     nginxManager,
-		backupPath:       backupPath,
+		settingsService:  settingsService,
 		audit:            audit,
-		dockerStats:      dockerStats,
-		proxyHostService: proxyHostService,
-		redisCache:       redisCache,
+		backupRepo:       settingsService.GetBackupRepo(),
+		proxyHostRepo:    settingsService.GetProxyHostRepo(),
+		redirectHostRepo: settingsService.GetRedirectHostRepo(),
+		certificateRepo:  settingsService.GetCertificateRepo(),
+		wafRepo:          settingsService.GetWAFRepo(),
+		nginxManager:     settingsService.GetNginxManager(),
+		proxyHostService: settingsService.GetProxyHostService(),
+		backupPath:       settingsService.GetBackupPath(),
+		redisCache:       settingsService.GetRedisCache(),
 	}
 }
 
 // Global Settings Handlers
 
 func (h *SettingsHandler) GetGlobalSettings(c echo.Context) error {
-	settings, err := h.settingsRepo.Get(c.Request().Context())
+	settings, err := h.settingsService.GetGlobalSettings(c.Request().Context())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
@@ -77,28 +63,9 @@ func (h *SettingsHandler) UpdateGlobalSettings(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
-	settings, err := h.settingsRepo.Update(c.Request().Context(), &req)
+	settings, err := h.settingsService.UpdateGlobalSettings(c.Request().Context(), &req)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-	}
-
-	// Regenerate default server config if direct IP access action changed
-	if req.DirectIPAccessAction != nil {
-		if err := h.nginxManager.GenerateDefaultServerConfig(c.Request().Context(), settings.DirectIPAccessAction); err != nil {
-			log.Printf("[Settings] Warning: failed to generate default server config: %v", err)
-		}
-	}
-
-	// Regenerate all proxy host configs to apply global settings (timeouts, body size, etc.)
-	if h.proxyHostService != nil {
-		if err := h.proxyHostService.SyncAllConfigs(c.Request().Context()); err != nil {
-			log.Printf("[Settings] Warning: failed to regenerate proxy host configs after global settings change: %v", err)
-		}
-	}
-
-	// Reload nginx to apply all changes
-	if err := h.nginxManager.ReloadNginx(c.Request().Context()); err != nil {
-		log.Printf("[Settings] Warning: failed to reload nginx after global settings change: %v", err)
 	}
 
 	// Audit log
@@ -111,21 +78,9 @@ func (h *SettingsHandler) UpdateGlobalSettings(c echo.Context) error {
 }
 
 func (h *SettingsHandler) ResetGlobalSettings(c echo.Context) error {
-	settings, err := h.settingsRepo.Reset(c.Request().Context())
+	settings, err := h.settingsService.ResetGlobalSettings(c.Request().Context())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-	}
-
-	// Regenerate all proxy host configs to apply default global settings
-	if h.proxyHostService != nil {
-		if err := h.proxyHostService.SyncAllConfigs(c.Request().Context()); err != nil {
-			log.Printf("[Settings] Warning: failed to regenerate proxy host configs after global settings reset: %v", err)
-		}
-	}
-
-	// Reload nginx to apply all changes
-	if err := h.nginxManager.ReloadNginx(c.Request().Context()); err != nil {
-		log.Printf("[Settings] Warning: failed to reload nginx after global settings reset: %v", err)
 	}
 
 	// Audit log
@@ -144,31 +99,11 @@ func (h *SettingsHandler) GetSettingsPresets(c echo.Context) error {
 func (h *SettingsHandler) ApplySettingsPreset(c echo.Context) error {
 	preset := c.Param("preset")
 
-	presetConfig, ok := model.GlobalSettingsPresets[preset]
-	if !ok {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid preset"})
-	}
-
-	req := &model.UpdateGlobalSettingsRequest{
-		WorkerProcesses:       &presetConfig.WorkerProcesses,
-		WorkerConnections:     &presetConfig.WorkerConnections,
-		MultiAccept:           &presetConfig.MultiAccept,
-		Sendfile:              &presetConfig.Sendfile,
-		TCPNopush:             &presetConfig.TCPNopush,
-		TCPNodelay:            &presetConfig.TCPNodelay,
-		KeepaliveTimeout:      &presetConfig.KeepaliveTimeout,
-		KeepaliveRequests:     &presetConfig.KeepaliveRequests,
-		ServerTokens:          &presetConfig.ServerTokens,
-		GzipEnabled:           &presetConfig.GzipEnabled,
-		GzipCompLevel:         &presetConfig.GzipCompLevel,
-		BrotliEnabled:         &presetConfig.BrotliEnabled,
-		BrotliCompLevel:       &presetConfig.BrotliCompLevel,
-		SSLProtocols:          presetConfig.SSLProtocols,
-		SSLPreferServerCiphers: &presetConfig.SSLPreferServerCiphers,
-	}
-
-	settings, err := h.settingsRepo.Update(c.Request().Context(), req)
+	settings, err := h.settingsService.ApplySettingsPreset(c.Request().Context(), preset)
 	if err != nil {
+		if err.Error() == "invalid preset: "+preset {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid preset"})
+		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 

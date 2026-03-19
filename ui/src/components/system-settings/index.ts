@@ -1,9 +1,7 @@
-// SystemSettings sub-components will be added here
-// Planned extractions:
-// - GeoIPTab
-// - ACMETab
-// - BotFilterTab
-// - SecurityTab
-// - SystemLogsTab
-// - MaintenanceTab
-// - LogFilesTab
+export { GeoIPTab } from './GeoIPTab';
+export { ACMETab } from './ACMETab';
+export { BotFilterTab } from './BotFilterTab';
+export { SecurityTab } from './SecurityTab';
+export { SystemLogsTab } from './SystemLogsTab';
+export { MaintenanceTab } from './MaintenanceTab';
+export { LogFilesTab } from './LogFilesTab';

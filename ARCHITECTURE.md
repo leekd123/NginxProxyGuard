@@ -1,6 +1,6 @@
 # NginxProxyGuard - Architecture Specification
 
-> **Version**: 2.2.0 | **Last Updated**: 2026-02-20
+> **Version**: 2.2.0 | **Last Updated**: 2026-03-20
 > 이 문서는 Claude Code가 개발 시 참조하는 프로젝트 아키텍처 명세서입니다.
 > 새 기능 추가, 버그 수정, 리팩토링 시 이 문서를 기준으로 작업합니다.
 
@@ -97,11 +97,11 @@ api/
 │   │   ├── database.go             # DB 풀 (25 open, 5 idle, 5min lifetime)
 │   │   ├── migration.go            # 마이그레이션 실행기
 │   │   └── migrations/             # SQL 파일 (001_init.sql + 보조)
-│   ├── handler/                    # 18 핸들러 파일
+│   ├── handler/                    # 25 핸들러 파일
 │   ├── middleware/                  # auth.go, api_token.go, rate_limit.go
 │   ├── model/                      # 22 모델 파일
 │   ├── nginx/                      # 7 파일: config 생성 엔진
-│   ├── repository/                 # 28 레포지토리 파일
+│   ├── repository/                 # 29 레포지토리 파일
 │   ├── scheduler/                  # 4 스케줄러 파일
 │   ├── service/                    # 19 서비스 파일
 │   └── util/query.go              # SQL 유틸리티
@@ -115,13 +115,13 @@ api/
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Handler Layer (18 files)                                │ ← 요청 파싱, 응답, 에러 분류
+│  Handler Layer (25 files)                                │ ← 요청 파싱, 응답, 에러 분류
 │  Echo Context → Bind → Service call → classifyError     │
 ├─────────────────────────────────────────────────────────┤
 │  Service Layer (19 files)                                │ ← 비즈니스 로직, 다중 repo 조합
 │  Data Aggregation → Config Generation → Test → Reload   │
 ├─────────────────────────────────────────────────────────┤
-│  Repository Layer (28 files)                             │ ← SQL, pq.Array, sql.Null*
+│  Repository Layer (29 files)                             │ ← SQL, pq.Array, sql.Null*
 │  DB + Optional Redis cache via SetCache()               │
 ├─────────────────────────────────────────────────────────┤
 │  Nginx Manager (7 files)                                 │ ← 템플릿 렌더링, atomic write
@@ -137,7 +137,7 @@ api/
 config.Load()
   → database.New() + cache.NewRedisClient()
     → nginx.NewManager()
-      → 28 Repositories 생성 (db 주입)
+      → 29 Repositories 생성 (db 주입)
         → Cache 주입 (proxyHostRepo, globalSettingsRepo, systemSettingsRepo, exploitBlockRuleRepo)
           → Services 생성 (repos + nginxManager 주입)
             → Cross-service Callback 연결
@@ -279,6 +279,8 @@ var domainNames pq.StringArray    // 읽기
 | `backup_export.go` | - | ExportAllData (full DB export) |
 | `backup_import.go` | - | ImportAllData (full DB import) |
 | `ip_ban_history.go` | IPBanHistoryRepository | Create, List, GetByIP, GetStats |
+| `geoip_history.go` | GeoIPHistoryRepository | Create, Update, List, GetLatest |
+| `helpers.go` | - | SQL NULL 변환 헬퍼 (FromNullString, ToNullString, etc.) |
 
 ### 2.8 Nginx Manager
 
@@ -697,6 +699,8 @@ Tag push (v*) → detect changes (SHA256 per component)
 | access_list_id | uuid | NULL | FK → access_lists |
 | proxy_connect/send/read_timeout | integer | 0 | 0=global |
 | client_max_body_size | varchar(20) | '' | |
+| config_status | varchar(20) | 'ok' | ok/error (nginx config 상태) |
+| config_error | text | NULL | config 생성/테스트 실패 시 에러 메시지 |
 | is_favorite | boolean | false | UI 즐겨찾기 (상단 고정) |
 | enabled | boolean | true | |
 | meta | jsonb | '{}' | |
@@ -743,6 +747,10 @@ Tag push (v*) → detect changes (SHA256 per component)
 | `exploit_block_rules` | 익스플로잇 차단 | pattern, pattern_type, category |
 | `challenge_configs` | CAPTCHA 설정 | challenge_type, site_key, secret_key |
 | `cloud_providers` | 클라우드 IP 차단 | slug, ip_ranges[], ip_ranges_url |
+| `waf_rule_change_events` | WAF 규칙 변경 감사 이력 | proxy_host_id, rule_id, action, created_at |
+| `waf_rule_snapshots` | WAF 설정 스냅샷 | proxy_host_id, created_at |
+| `waf_rule_snapshot_details` | 스냅샷 상세 레코드 | snapshot_id, rule_id |
+| `login_attempts` | 로그인 시도 추적 (잠금) | ip_address, username, success, attempted_at |
 
 ### 5.4 Auth/Settings Tables
 
@@ -755,6 +763,7 @@ Tag push (v*) → detect changes (SHA256 per component)
 | `global_settings` | Nginx 글로벌 설정 (단일 행) |
 | `system_settings` | 시스템 설정 (단일 행) |
 | `backups` | 백업 메타데이터 |
+| `log_settings` | 로그 설정 (보존 기간 등) |
 
 ### 5.5 ENUM Types
 
@@ -830,6 +839,7 @@ system_log_level: 'debug','info','warn','error','fatal'
 | POST | `/api/v1/proxy-hosts/:id/test` | 업스트림 연결 테스트 |
 | POST | `/api/v1/proxy-hosts/:id/clone` | 복제 |
 | PUT | `/api/v1/proxy-hosts/:id/favorite` | 즐겨찾기 토글 (nginx reload 없음) |
+| POST | `/api/v1/proxy-hosts/:id/regenerate` | 개별 호스트 config 재생성 |
 
 ### 6.4 Security (per-host)
 
@@ -944,6 +954,7 @@ interface ProxyHost {
   ssl_enabled, ssl_force_https, ssl_http2, ssl_http3, certificate_id?
   waf_enabled, waf_mode, waf_paranoia_level, waf_anomaly_threshold
   cache_enabled, block_exploits, access_list_id?, is_favorite, enabled
+  config_status, config_error?
   proxy_connect_timeout?, proxy_send_timeout?, proxy_read_timeout?
   client_max_body_size?, advanced_config?
   created_at, updated_at

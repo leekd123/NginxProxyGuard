@@ -33,6 +33,9 @@ server {
     listen [::]:{{.HTTPPort}};
     server_name {{join .Host.DomainNames " "}};
 
+    # Disable WAF for redirect host
+    modsecurity off;
+
     # ACME HTTP-01 Challenge support
     location /.well-known/acme-challenge/ {
         root /etc/nginx/acme-challenge;
@@ -70,6 +73,9 @@ server {
     listen {{.HTTPSPort}} quic;
     listen [::]:{{.HTTPSPort}} quic;
     server_name {{join .Host.DomainNames " "}};
+
+    # Disable WAF for redirect host
+    modsecurity off;
 
     # SSL configuration
     ssl_certificate /etc/nginx/certs/{{certPath .Host}}/fullchain.pem;

@@ -12,7 +12,9 @@ import (
 )
 
 // Per-host WAF config template
-const hostWAFTemplate = `# nginx-guard per-host WAF configuration
+// CRS rules are loaded globally in crs-global.conf (http block).
+// This per-host config only contains tuning overrides that merge with the global rules.
+const hostWAFTemplate = `# nginx-guard per-host WAF configuration (tuning only)
 # Host ID: {{.Host.ID}}
 # Mode: {{.Mode}}
 # Paranoia Level: {{.ParanoiaLevel}}
@@ -20,60 +22,27 @@ const hostWAFTemplate = `# nginx-guard per-host WAF configuration
 # Exclusions: {{len .Exclusions}}
 # Priority Allow IPs: {{len .AllowedIPs}}
 # Generated at: {{now}}
-
-# Include base ModSecurity configuration
-Include /etc/nginx/modsec/modsec-base.conf
-
-# Include OWASP CRS setup
-Include /etc/nginx/owasp-crs/crs-setup.conf
+#
+# NOTE: CRS rules are loaded globally in /etc/nginx/modsec/crs-global.conf
+# This file contains only per-host tuning that merges with the global rules.
 
 # =============================================================================
-# Per-host CRS tuning (must be set BEFORE CRS rules are loaded)
+# Per-host CRS tuning overrides
 # =============================================================================
 
 # Set Paranoia Level (1-4)
-# PL1: Minimal false positives (recommended)
-# PL2: Medium, for security-sensitive sites
-# PL3: High, for financial/healthcare
-# PL4: Extreme, experts only
 SecAction "id:900000,phase:1,pass,t:none,nolog,setvar:tx.blocking_paranoia_level={{.ParanoiaLevel}}"
 
 # Set Anomaly Score Threshold
-# Lower = stricter (more blocking), Higher = looser (more permissive)
-# Default: 5, Permissive: 10+, Strict: 3
 SecAction "id:900110,phase:1,pass,t:none,nolog,setvar:tx.inbound_anomaly_score_threshold={{.AnomalyThreshold}},setvar:tx.outbound_anomaly_score_threshold={{.AnomalyThreshold}}"
 
-# Allowed HTTP methods (CRS Rule 911100 - METHOD ENFORCEMENT)
-# Default CRS only allows GET HEAD POST OPTIONS, blocking PUT/DELETE/PATCH
-# which are required for REST API operations (editing hosts, deleting certs, etc.)
-SecAction "id:900200,phase:1,pass,t:none,nolog,setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PUT DELETE PATCH'"
-
-# Allowed HTTP versions (CRS Rule 911100)
-# Include HTTP/3.0 for QUIC support alongside standard versions
-SecAction "id:900230,phase:1,pass,t:none,nolog,setvar:'tx.allowed_http_versions=HTTP/1.1 HTTP/2 HTTP/2.0 HTTP/3.0'"
-
-# Request body / file size limits (CRS Rule 920370/920400)
-# Aligned with SecRequestBodyLimit (13107200 bytes = 12.5 MB) in modsec-base.conf
-SecAction "id:900300,phase:1,pass,t:none,nolog,setvar:tx.max_file_size=13107200,setvar:tx.combined_file_sizes=13107200"
-
 {{if .AllowedIPs}}
-# =============================================================================
 # Priority Allow IPs - Bypass WAF completely for these IPs
-# =============================================================================
-# These IPs are configured in Security > Priority Allow IPs
 SecRule REMOTE_ADDR "@ipMatch {{joinComma .AllowedIPs}}" "id:900900,phase:1,pass,nolog,ctl:ruleEngine=Off"
 {{end}}
 
-# Include OWASP CRS rules
-Include /etc/nginx/owasp-crs/rules/*.conf
-
-# Custom nginx-guard rules (without ruleEngine overrides)
-Include /etc/nginx/modsec/custom-rules.conf
-
 {{if .Exclusions}}
 # Per-host rule exclusions
-# SecRuleRemoveById completely disables the rule (no matching, no scoring, no logging)
-# Note: Excluded rules won't appear in WAF logs since they're completely disabled
 {{range .Exclusions}}
 # Rule {{.RuleID}}: {{.RuleDescription}} ({{.RuleCategory}})
 # Reason: {{.Reason}}
@@ -81,7 +50,7 @@ SecRuleRemoveById {{.RuleID}}
 {{end}}
 {{end}}
 
-# Set WAF mode LAST to ensure it takes precedence
+# Set WAF mode (overrides global SecRuleEngine Off)
 SecRuleEngine {{.Mode}}
 `
 

@@ -245,10 +245,13 @@ server {
 
 {{if .Host.WAFEnabled}}
     # WAF (ModSecurity) - {{.Host.WAFMode}} mode
-    # Ensure Host header is set for HTTP/3 requests (uses :authority pseudo-header)
+    # CRS rules are loaded globally; per-host tuning is applied via rules_file
     more_set_input_headers "Host: $host";
     modsecurity on;
     modsecurity_rules_file /etc/nginx/modsec/{{wafConfig .Host}};
+{{else}}
+    # WAF disabled for this host (override global modsecurity on)
+    modsecurity off;
 {{end}}
 
 {{if .GeoRestriction}}{{if .GeoRestriction.Enabled}}{{if .GeoRestriction.ChallengeMode}}
@@ -1061,10 +1064,13 @@ server {
 
 {{if .Host.WAFEnabled}}
     # WAF (ModSecurity) - {{.Host.WAFMode}} mode
-    # Ensure Host header is set for HTTP/3 requests (uses :authority pseudo-header)
+    # CRS rules are loaded globally; per-host tuning is applied via rules_file
     more_set_input_headers "Host: $host";
     modsecurity on;
     modsecurity_rules_file /etc/nginx/modsec/{{wafConfig .Host}};
+{{else}}
+    # WAF disabled for this host (override global modsecurity on)
+    modsecurity off;
 {{end}}
 
 {{if .GeoRestriction}}{{if .GeoRestriction.Enabled}}{{if .GeoRestriction.ChallengeMode}}

@@ -20,6 +20,9 @@ server {
     listen [::]:{{.HTTPPort}} default_server;
     server_name _;
 
+    # Disable WAF for default server (health check, ACME, etc.)
+    modsecurity off;
+
     # Health check endpoint (always allowed)
     location /health {
         access_log off;

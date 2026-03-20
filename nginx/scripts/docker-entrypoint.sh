@@ -245,8 +245,8 @@ update_static_html() {
 }
 update_static_html
 
-# Always update ModSecurity base config from defaults (for security fixes like SecRequestBodyLimitAction)
-update_modsec_base() {
+# Always update ModSecurity configs from defaults (for security fixes and CRS global loading)
+update_modsec_configs() {
     if [ -f "$NGINX_DEFAULT/modsec/modsec-base.conf" ]; then
         echo "[Entrypoint] Updating ModSecurity base config from defaults..."
         cp -f "$NGINX_DEFAULT/modsec/modsec-base.conf" "$NGINX_DIR/modsec/modsec-base.conf" 2>/dev/null || true
@@ -254,8 +254,15 @@ update_modsec_base() {
         chmod 644 "$NGINX_DIR/modsec/modsec-base.conf" 2>/dev/null || true
         echo "[Entrypoint] ModSecurity base config updated"
     fi
+    if [ -f "$NGINX_DEFAULT/modsec/crs-global.conf" ]; then
+        echo "[Entrypoint] Updating CRS global config from defaults..."
+        cp -f "$NGINX_DEFAULT/modsec/crs-global.conf" "$NGINX_DIR/modsec/crs-global.conf" 2>/dev/null || true
+        chown nginx:nginx "$NGINX_DIR/modsec/crs-global.conf" 2>/dev/null || true
+        chmod 644 "$NGINX_DIR/modsec/crs-global.conf" 2>/dev/null || true
+        echo "[Entrypoint] CRS global config updated"
+    fi
 }
-update_modsec_base
+update_modsec_configs
 
 # Run GeoIP update if script exists and license key is provided
 if [ -x /scripts/geoip-update.sh ]; then

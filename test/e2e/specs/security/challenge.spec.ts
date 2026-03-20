@@ -183,16 +183,6 @@ test.describe('Challenge/CAPTCHA', () => {
     });
   });
 
-  test.describe('Per-Host Challenge Configuration', () => {
-    test.skip('should enable challenge for specific host', async () => {
-      // This would require proxy host form with challenge settings
-    });
-
-    test.skip('should configure different challenge type per host', async () => {
-      // This would require proxy host with custom challenge config
-    });
-  });
-
   test.describe('Challenge Bypass', () => {
     test('should configure IP whitelist for challenge bypass', async ({ page }) => {
       await page.goto(ROUTES.settingsChallenge);

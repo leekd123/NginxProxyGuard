@@ -34,7 +34,7 @@ export class RedirectHostListPage extends BasePage {
 
     // Host list
     this.hostList = page.locator('main .space-y-4, main .grid, main > div').first();
-    this.hostItems = page.locator('[class*="card"], .bg-white.rounded, .dark\\:bg-slate-800').filter({
+    this.hostItems = page.locator('tbody tr').filter({
       has: page.locator('text=/\\.(com|local|net|org|io)|redirect|301|302|307|308/i'),
     });
     this.emptyState = page.locator('text=/no.*redirect|empty|no.*data/i');
@@ -109,18 +109,26 @@ export class RedirectHostListPage extends BasePage {
    * Get host card by domain name.
    */
   getHostByDomain(domain: string): Locator {
-    return this.page.locator('[class*="card"], .bg-white.rounded, .dark\\:bg-slate-800').filter({
+    return this.page.locator('tr, [class*="card"], .bg-white.rounded').filter({
       hasText: domain,
     }).first();
   }
 
   /**
    * Click on a host to edit.
+   * The redirect host list uses a table with explicit edit buttons, not card clicks.
    */
   async clickHost(domain: string): Promise<void> {
     const hostCard = this.getHostByDomain(domain);
-    await hostCard.click();
-    await this.page.waitForSelector('[class*="modal"], [role="dialog"], .fixed.inset-0', {
+    // Click the edit button within the host row
+    const editBtn = hostCard.locator('button').filter({ hasText: /edit/i }).first();
+    if (await editBtn.isVisible()) {
+      await editBtn.click();
+    } else {
+      // Fallback to clicking the row itself
+      await hostCard.click();
+    }
+    await this.page.waitForSelector('.fixed.inset-0, [role="dialog"], [class*="modal"]', {
       state: 'visible',
       timeout: TIMEOUTS.medium,
     });
@@ -146,10 +154,16 @@ export class RedirectHostListPage extends BasePage {
 
   /**
    * Delete a host by domain name.
+   * The redirect host component uses a browser confirm() dialog.
    */
   async deleteHost(domain: string): Promise<void> {
     const hostCard = this.getHostByDomain(domain);
     const deleteBtn = hostCard.locator('button').filter({ hasText: /delete/i }).first();
+
+    // Set up dialog handler for the browser confirm() dialog
+    this.page.once('dialog', async dialog => {
+      await dialog.accept();
+    });
 
     if (await deleteBtn.isVisible()) {
       await deleteBtn.click();
@@ -161,9 +175,7 @@ export class RedirectHostListPage extends BasePage {
       }
     }
 
-    // Confirm deletion
-    const confirmBtn = this.page.locator('button').filter({ hasText: /confirm|yes|delete/i }).last();
-    await confirmBtn.click();
+    await this.page.waitForTimeout(500);
     await this.waitForHostsLoad();
   }
 
@@ -177,10 +189,11 @@ export class RedirectHostListPage extends BasePage {
 
   /**
    * Get host enabled/disabled status.
+   * The UI uses StatusBadge with bg-green-100 class for enabled hosts.
    */
   async isHostEnabled(domain: string): Promise<boolean> {
     const hostCard = this.getHostByDomain(domain);
-    const enabledIndicator = hostCard.locator('[class*="green"], .bg-green, text=/enabled/i').first();
+    const enabledIndicator = hostCard.locator('[class*="green-100"], [class*="green-300"], .bg-green-100').first();
     return await enabledIndicator.isVisible();
   }
 

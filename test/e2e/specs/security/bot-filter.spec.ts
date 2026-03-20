@@ -9,7 +9,7 @@ test.describe('Bot Filter on Proxy Host', () => {
   let listPage: ProxyHostListPage;
   let formPage: ProxyHostFormPage;
   let apiHelper: APIHelper;
-  let createdHostId: number | null;
+  let createdHostId: string | null;
 
   test.beforeEach(async ({ page, request }) => {
     listPage = new ProxyHostListPage(page);

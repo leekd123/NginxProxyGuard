@@ -267,36 +267,6 @@ test.describe('Access List Management', () => {
   });
 });
 
-test.describe('Access List with Proxy Host', () => {
-  let accessListPage: AccessListPage;
-  let apiHelper: APIHelper;
-
-  test.beforeEach(async ({ page, request }) => {
-    accessListPage = new AccessListPage(page);
-    apiHelper = new APIHelper(request);
-    await apiHelper.login();
-  });
-
-  test.afterEach(async () => {
-    await apiHelper.cleanupTestAccessLists();
-    await apiHelper.cleanupTestHosts();
-  });
-
-  test.skip('should apply ACL to proxy host', async () => {
-    // Create an access list
-    const aclData = TestDataFactory.createAccessList();
-    const acl = await apiHelper.createAccessList(aclData);
-
-    // Create a proxy host with the ACL
-    const hostData = TestDataFactory.createProxyHost({
-      // access_list_id: acl.id, // If supported
-    });
-    await apiHelper.createProxyHost(hostData);
-
-    // Verify association - depends on API structure
-  });
-});
-
 test.describe('Access List IP Validation', () => {
   let apiHelper: APIHelper;
 

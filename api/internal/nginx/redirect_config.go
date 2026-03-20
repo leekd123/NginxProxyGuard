@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"nginx-proxy-guard/internal/model"
@@ -99,6 +101,22 @@ func (m *Manager) GenerateRedirectConfig(ctx context.Context, host *model.Redire
 	tmpl, err := template.New("redirect_host").Funcs(funcMap).Parse(redirectHostTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse redirect template: %w", err)
+	}
+
+	// Check if SSL is enabled but no certificate is assigned or cert files don't exist
+	if host.SSLEnabled && (host.CertificateID == nil || *host.CertificateID == "") {
+		log.Printf("[WARN] SSL temporarily disabled for redirect host %s (%s): no certificate assigned. Config will be HTTP-only until a certificate is assigned.",
+			host.ID, strings.Join(host.DomainNames, ", "))
+		host.SSLEnabled = false
+		host.SSLForceHTTPS = false
+	} else if host.SSLEnabled && host.CertificateID != nil && *host.CertificateID != "" {
+		certPath := filepath.Join(m.certsPath, *host.CertificateID, "fullchain.pem")
+		if _, err := os.Stat(certPath); os.IsNotExist(err) {
+			log.Printf("[WARN] SSL temporarily disabled for redirect host %s (%s): certificate file not found at %s. Config will be HTTP-only until certificate is ready.",
+				host.ID, strings.Join(host.DomainNames, ", "), certPath)
+			host.SSLEnabled = false
+			host.SSLForceHTTPS = false
+		}
 	}
 
 	data := RedirectHostConfigData{

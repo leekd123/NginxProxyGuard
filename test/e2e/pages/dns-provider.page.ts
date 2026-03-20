@@ -246,6 +246,10 @@ export class DnsProviderPage extends BasePage {
       this.modal.waitFor({ state: 'hidden', timeout: TIMEOUTS.long }),
       this.errorMessage.waitFor({ state: 'visible', timeout: TIMEOUTS.long }),
     ]).catch(() => null);
+    // Wait for React Query to refetch after modal closes
+    await this.page.waitForLoadState('networkidle');
+    // Extra wait for table to re-render with new data
+    await this.page.waitForTimeout(500);
   }
 
   /**

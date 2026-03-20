@@ -122,6 +122,7 @@ setup('authenticate', async ({ page }) => {
   if (await isLoggedIn(page)) {
     console.log('Successfully logged in with test credentials');
     await expect(page.locator('header')).toContainText(TEST_CREDENTIALS.username, { timeout: 10000 });
+    await page.evaluate(() => localStorage.setItem('npg_language', 'en'));
     await page.context().storageState({ path: authFile });
     return;
   }
@@ -164,6 +165,7 @@ setup('authenticate', async ({ page }) => {
   } else if (await isLoggedIn(page)) {
     // We're logged in with admin/admin (no InitialSetup required)
     console.log('Logged in directly with admin credentials');
+    await page.evaluate(() => localStorage.setItem('npg_language', 'en'));
     await page.context().storageState({ path: authFile });
     return;
   }
@@ -176,6 +178,9 @@ setup('authenticate', async ({ page }) => {
 
   // Verify logged in state
   await expect(page.locator('header')).toContainText(TEST_CREDENTIALS.username, { timeout: 10000 });
+
+  // Set language to English for consistent test selectors
+  await page.evaluate(() => localStorage.setItem('npg_language', 'en'));
 
   // Save signed-in state to the specified file
   await page.context().storageState({ path: authFile });

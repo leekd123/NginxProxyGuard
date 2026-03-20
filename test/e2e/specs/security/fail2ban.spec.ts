@@ -52,9 +52,13 @@ test.describe('Fail2ban Integration', () => {
     const testIp = '192.168.99.99';
 
     test.afterEach(async () => {
-      // Cleanup - unban test IP
+      // Cleanup - unban test IP by finding its database ID
       try {
-        await apiHelper.unbanIp(testIp);
+        const bannedIps = await apiHelper.getWafBannedIps();
+        const entry = bannedIps.find(b => b.ip_address === testIp);
+        if (entry) {
+          await apiHelper.unbanIp(entry.id);
+        }
       } catch {
         // IP might not be banned
       }
@@ -64,7 +68,7 @@ test.describe('Fail2ban Integration', () => {
       await apiHelper.banIp(testIp, 'Test ban');
 
       const bannedIps = await apiHelper.getWafBannedIps();
-      const found = bannedIps.find(b => b.ip === testIp);
+      const found = bannedIps.find(b => b.ip_address === testIp);
 
       expect(found).toBeDefined();
     });
@@ -74,38 +78,40 @@ test.describe('Fail2ban Integration', () => {
       await apiHelper.banIp(testIp, reason);
 
       const bannedIps = await apiHelper.getWafBannedIps();
-      const found = bannedIps.find(b => b.ip === testIp);
+      const found = bannedIps.find(b => b.ip_address === testIp);
 
       expect(found?.reason).toBe(reason);
     });
 
     test('should ban IP via UI', async ({ page }) => {
       await wafPage.gotoBannedIps();
-      await wafPage.addBanButton.click();
 
-      // Wait for modal
-      await page.waitForSelector('[class*="modal"], [role="dialog"]', {
-        state: 'visible',
-        timeout: TIMEOUTS.medium,
-      });
+      // Click the "Add IP Ban" button
+      const addBtn = page.locator('button').filter({ hasText: /add.*ban|ban.*ip/i }).first();
+      await addBtn.click();
 
-      // Fill IP
-      const ipInput = page.locator('input[placeholder*="IP"], input[name*="ip"]').first();
-      if (await ipInput.isVisible()) {
-        await ipInput.fill(testIp);
-      }
+      // Wait for the ban modal to appear (contains a form with IP input)
+      const modal = page.locator('.fixed.inset-0').filter({
+        has: page.locator('form'),
+      }).first();
+      await modal.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
 
-      // Fill reason
-      const reasonInput = page.locator('input[name*="reason"], textarea').first();
+      // Fill IP address (font-mono input with required attribute inside the modal form)
+      const ipInput = modal.locator('input[type="text"]').first();
+      await ipInput.fill(testIp);
+
+      // Fill reason (second text input in the form)
+      const reasonInput = modal.locator('form input[type="text"]').nth(1);
       if (await reasonInput.isVisible()) {
         await reasonInput.fill('Test from UI');
       }
 
-      // Save
-      const saveBtn = page.locator('button').filter({ hasText: /ban|save|add/i }).first();
+      // Submit the ban form
+      const saveBtn = modal.locator('button[type="submit"]').first();
       await saveBtn.click();
 
-      await page.waitForTimeout(200);
+      // Wait for the modal to close
+      await modal.waitFor({ state: 'hidden', timeout: TIMEOUTS.medium }).catch(() => null);
     });
   });
 
@@ -118,15 +124,15 @@ test.describe('Fail2ban Integration', () => {
 
       // Verify it's banned
       let bannedIps = await apiHelper.getWafBannedIps();
-      let found = bannedIps.find(b => b.ip === testIp);
+      let found = bannedIps.find(b => b.ip_address === testIp);
       expect(found).toBeDefined();
 
-      // Unban
-      await apiHelper.unbanIp(testIp);
+      // Unban using database ID
+      await apiHelper.unbanIp(found!.id);
 
       // Verify it's unbanned
       bannedIps = await apiHelper.getWafBannedIps();
-      found = bannedIps.find(b => b.ip === testIp);
+      found = bannedIps.find(b => b.ip_address === testIp);
       expect(found).toBeUndefined();
     });
   });
@@ -139,12 +145,12 @@ test.describe('Fail2ban Integration', () => {
       await apiHelper.banIp(testIp, 'Test timestamp');
 
       const bannedIps = await apiHelper.getWafBannedIps();
-      const found = bannedIps.find(b => b.ip === testIp);
+      const found = bannedIps.find(b => b.ip_address === testIp);
 
       expect(found?.banned_at).toBeDefined();
 
-      // Cleanup
-      await apiHelper.unbanIp(testIp);
+      // Cleanup using database ID
+      if (found) await apiHelper.unbanIp(found.id);
     });
 
     test('should display ban reason', async () => {
@@ -154,12 +160,12 @@ test.describe('Fail2ban Integration', () => {
       await apiHelper.banIp(testIp, reason);
 
       const bannedIps = await apiHelper.getWafBannedIps();
-      const found = bannedIps.find(b => b.ip === testIp);
+      const found = bannedIps.find(b => b.ip_address === testIp);
 
       expect(found?.reason).toBe(reason);
 
-      // Cleanup
-      await apiHelper.unbanIp(testIp);
+      // Cleanup using database ID
+      if (found) await apiHelper.unbanIp(found.id);
     });
   });
 
@@ -185,11 +191,11 @@ test.describe('IP Validation', () => {
     await apiHelper.banIp(testIp);
 
     const bannedIps = await apiHelper.getWafBannedIps();
-    const found = bannedIps.find(b => b.ip === testIp);
+    const found = bannedIps.find(b => b.ip_address === testIp);
     expect(found).toBeDefined();
 
-    // Cleanup
-    await apiHelper.unbanIp(testIp);
+    // Cleanup using database ID
+    if (found) await apiHelper.unbanIp(found.id);
   });
 
   test('should accept CIDR notation', async () => {
@@ -199,11 +205,11 @@ test.describe('IP Validation', () => {
       await apiHelper.banIp(testCidr);
 
       const bannedIps = await apiHelper.getWafBannedIps();
-      const found = bannedIps.find(b => b.ip === testCidr);
+      const found = bannedIps.find(b => b.ip_address === testCidr);
 
-      // Cleanup if successful
+      // Cleanup using database ID
       if (found) {
-        await apiHelper.unbanIp(testCidr);
+        await apiHelper.unbanIp(found.id);
       }
     } catch {
       // CIDR might not be supported

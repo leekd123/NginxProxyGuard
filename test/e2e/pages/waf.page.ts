@@ -58,18 +58,18 @@ export class WAFPage extends BasePage {
     this.paranoiaLevelSelect = page.locator('select').filter({ has: page.locator('option:has-text("1"), option:has-text("2")') }).first();
     this.saveButton = page.locator('button').filter({ hasText: /save|apply/i }).first();
 
-    // Banned IPs
-    this.bannedIpList = page.locator('table, [class*="list"]').first();
+    // Banned IPs - page uses table or space-y container
+    this.bannedIpList = page.locator('main .space-y-6, main table, main [class*="list"]').first();
     this.bannedIpItems = page.locator('tr, [class*="item"]').filter({ has: page.locator('text=/\\d+\\.\\d+\\.\\d+\\.\\d+/') });
-    this.addBanButton = page.locator('button').filter({ hasText: /add.*ban|ban.*ip/i }).first();
+    this.addBanButton = page.locator('button').filter({ hasText: /add.*ban|ban.*ip|IP/i }).first();
     this.unbanButton = page.locator('button').filter({ hasText: /unban|remove/i }).first();
 
     // URI Blocks
-    this.uriBlockList = page.locator('table, [class*="list"]').first();
-    this.addUriBlockButton = page.locator('button').filter({ hasText: /add.*block|block.*uri/i }).first();
+    this.uriBlockList = page.locator('main .space-y-6, main table, main [class*="list"]').first();
+    this.addUriBlockButton = page.locator('button, a').filter({ hasText: /add.*rule|add.*block|block.*uri|규칙.*추가/i }).first();
 
-    // Exploit Rules
-    this.exploitRulesList = page.locator('[class*="rules"], [class*="list"]').first();
+    // Exploit Rules - uses a grid layout or space-y container
+    this.exploitRulesList = page.locator('main .space-y-6, main .grid, main [class*="grid"]').first();
     this.ruleToggle = page.locator('input[type="checkbox"], button[role="switch"]');
 
     // WAF Tester

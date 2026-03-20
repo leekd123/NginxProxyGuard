@@ -71,7 +71,7 @@ export abstract class BasePage {
   async clickSyncAll(): Promise<void> {
     await this.syncAllButton.click();
     // Wait for sync modal to appear and complete
-    await this.page.waitForSelector('[class*="modal"], [role="dialog"]', {
+    await this.page.waitForSelector('.fixed.inset-0.backdrop-blur-sm, [class*="modal"], [role="dialog"]', {
       state: 'visible',
       timeout: TIMEOUTS.medium,
     });
@@ -79,7 +79,7 @@ export abstract class BasePage {
     await this.page.waitForFunction(
       () => {
         const spinner = document.querySelector('[class*="animate-spin"]');
-        return !spinner || !spinner.closest('[class*="modal"], [role="dialog"]');
+        return !spinner || !spinner.closest('.fixed.inset-0');
       },
       { timeout: TIMEOUTS.veryLong }
     );

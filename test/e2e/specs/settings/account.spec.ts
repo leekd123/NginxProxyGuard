@@ -30,22 +30,6 @@ test.describe('Account Settings', () => {
     // These tests are sensitive and might affect the login state
     // Run them carefully or skip in CI
 
-    test.skip('should change password successfully', async () => {
-      await accountPage.goto();
-
-      const currentPassword = TEST_CREDENTIALS.password;
-      const newPassword = 'NewSecurePassword123!';
-
-      await accountPage.changePassword(currentPassword, newPassword);
-
-      // Verify success message
-      const hasSuccess = await accountPage.hasSuccessMessage();
-      expect(hasSuccess).toBeTruthy();
-
-      // Change back to original password
-      await accountPage.changePassword(newPassword, currentPassword);
-    });
-
     test('should show error for incorrect current password', async ({ page }) => {
       await accountPage.goto();
 
@@ -99,28 +83,6 @@ test.describe('Account Settings', () => {
       expect(typeof isEnabled).toBe('boolean');
     });
 
-    test.skip('should initiate 2FA setup', async () => {
-      await accountPage.goto();
-
-      if (!await accountPage.isTwoFactorEnabled()) {
-        await accountPage.setupTwoFactor();
-
-        // QR code should be visible
-        await expect(accountPage.qrCodeImage).toBeVisible();
-      }
-    });
-
-    test.skip('should disable 2FA', async () => {
-      await accountPage.goto();
-
-      if (await accountPage.isTwoFactorEnabled()) {
-        await accountPage.disableTwoFactor();
-
-        // 2FA should be disabled
-        const isEnabled = await accountPage.isTwoFactorEnabled();
-        expect(isEnabled).toBeFalsy();
-      }
-    });
   });
 
   test.describe('Language Settings', () => {
@@ -132,17 +94,6 @@ test.describe('Account Settings', () => {
       expect(typeof languageVisible).toBe('boolean');
     });
 
-    test.skip('should change language', async () => {
-      await accountPage.goto();
-
-      if (await accountPage.languageSelect.isVisible()) {
-        await accountPage.selectLanguage('English');
-        await accountPage.save();
-
-        const hasSuccess = await accountPage.hasSuccessMessage();
-        expect(hasSuccess).toBeTruthy();
-      }
-    });
   });
 
   test.describe('Font Settings', () => {
@@ -153,17 +104,6 @@ test.describe('Account Settings', () => {
       expect(typeof fontVisible).toBe('boolean');
     });
 
-    test.skip('should change font', async () => {
-      await accountPage.goto();
-
-      if (await accountPage.fontSelect.isVisible()) {
-        await accountPage.selectFont('Pretendard');
-        await accountPage.save();
-
-        const hasSuccess = await accountPage.hasSuccessMessage();
-        expect(hasSuccess).toBeTruthy();
-      }
-    });
   });
 
   test.describe('Theme Settings', () => {
@@ -174,17 +114,6 @@ test.describe('Account Settings', () => {
       expect(typeof themeVisible).toBe('boolean');
     });
 
-    test.skip('should change theme', async () => {
-      await accountPage.goto();
-
-      if (await accountPage.themeSelect.isVisible()) {
-        await accountPage.selectTheme('dark');
-        await accountPage.save();
-
-        const hasSuccess = await accountPage.hasSuccessMessage();
-        expect(hasSuccess).toBeTruthy();
-      }
-    });
   });
 
   test.describe('API Integration', () => {
@@ -193,16 +122,6 @@ test.describe('Account Settings', () => {
       expect(settings).toHaveProperty('username');
     });
 
-    test.skip('should update password via API', async () => {
-      // Sensitive operation - skipped by default
-      const currentPassword = TEST_CREDENTIALS.password;
-      const newPassword = 'TempPassword123!';
-
-      await apiHelper.updatePassword(currentPassword, newPassword);
-
-      // Change back
-      await apiHelper.updatePassword(newPassword, currentPassword);
-    });
   });
 });
 

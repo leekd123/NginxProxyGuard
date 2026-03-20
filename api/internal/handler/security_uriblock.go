@@ -256,6 +256,11 @@ func (h *SecurityHandler) AddGlobalURIBlockRule(c echo.Context) error {
 	if req.MatchType == "" {
 		req.MatchType = model.URIMatchPrefix
 	}
+	if req.MatchType == model.URIMatchRegex {
+		if err := ValidateRegexPattern(req.Pattern); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Invalid regex pattern: %v", err)})
+		}
+	}
 
 	block, err := h.securityService.AddGlobalURIBlockRule(c.Request().Context(), &req)
 	if err != nil {

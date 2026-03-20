@@ -429,6 +429,14 @@ func (m *Manager) GenerateConfigFull(ctx context.Context, data ProxyHostConfigDa
 	// If so, temporarily disable SSL to generate a working config
 	// This is a fallback for when certificate is being issued asynchronously
 	sslTemporarilyDisabled := false
+	if data.Host.SSLEnabled && (data.Host.CertificateID == nil || *data.Host.CertificateID == "") {
+		// No certificate assigned - disable SSL to avoid referencing non-existent cert files
+		log.Printf("[WARN] SSL temporarily disabled for host %s (%s): no certificate assigned. Config will be HTTP-only until a certificate is assigned.",
+			data.Host.ID, strings.Join(data.Host.DomainNames, ", "))
+		data.Host.SSLEnabled = false
+		data.Host.SSLForceHTTPS = false
+		sslTemporarilyDisabled = true
+	}
 	if data.Host.SSLEnabled && data.Host.CertificateID != nil && *data.Host.CertificateID != "" {
 		certPath := filepath.Join(m.certsPath, *data.Host.CertificateID, "fullchain.pem")
 		if _, err := os.Stat(certPath); os.IsNotExist(err) {

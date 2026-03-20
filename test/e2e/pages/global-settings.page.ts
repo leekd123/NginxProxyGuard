@@ -114,9 +114,17 @@ export class GlobalSettingsPage extends BasePage {
     this.captchaSiteKeyInput = page.locator('input[name*="site_key"], input[placeholder*="site.*key"]').first();
     this.captchaSecretKeyInput = page.locator('input[name*="secret_key"], input[placeholder*="secret"]').first();
 
-    // Proxy Buffering Settings
-    this.proxyBufferingSelect = page.locator('div.group').filter({ has: page.locator('label', { hasText: /^Proxy Buffering/ }) }).filter({ hasNot: page.locator('label:has-text("Request")') }).locator('select').first();
-    this.proxyRequestBufferingSelect = page.locator('div.group').filter({ has: page.locator('label:has-text("Proxy Request Buffering")') }).locator('select').first();
+    // Proxy Buffering Settings - SettingField wraps each with div.group
+    // "Proxy Buffering" (en) / "프록시 버퍼링" (ko) - exclude the "Request" variant
+    this.proxyBufferingSelect = page.locator('div.group').filter({
+      has: page.locator('label', { hasText: /Proxy Buffering|프록시 버퍼링/ }),
+    }).filter({
+      hasNot: page.locator('label', { hasText: /Request|요청/ }),
+    }).locator('select').first();
+    // "Proxy Request Buffering" (en) / "프록시 요청 버퍼링" (ko)
+    this.proxyRequestBufferingSelect = page.locator('div.group').filter({
+      has: page.locator('label', { hasText: /Proxy Request Buffering|프록시 요청 버퍼링/ }),
+    }).locator('select').first();
 
     // Status messages
     this.successMessage = page.locator('text=/success|saved|applied/i, [class*="toast"]');
@@ -263,9 +271,12 @@ export class GlobalSettingsPage extends BasePage {
    * Click the Performance tab.
    */
   async gotoPerformanceTab(): Promise<void> {
-    const tab = this.page.locator('button, a, [role="tab"]').filter({ hasText: /performance/i }).first();
+    // Tab text: "Performance" (en) or "성능" (ko)
+    const tab = this.page.locator('button, a, [role="tab"]').filter({ hasText: /performance|성능/i }).first();
     await tab.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForTimeout(500);
+    // Wait for a select to appear in the tab content (proxy_buffering select)
+    await this.page.locator('select').first().waitFor({ state: 'visible', timeout: TIMEOUTS.medium }).catch(() => null);
   }
 
   // ==================== Proxy Buffering Settings ====================
@@ -334,11 +345,17 @@ export class GlobalSettingsPage extends BasePage {
   // ==================== Actions ====================
 
   /**
-   * Save settings.
+   * Save settings and wait for the API response.
    */
   async save(): Promise<void> {
     await this.saveButton.click();
-    await this.page.waitForLoadState('domcontentloaded');
+    // Wait for either a success message or network idle (API response received)
+    await Promise.race([
+      this.successMessage.waitFor({ state: 'visible', timeout: TIMEOUTS.medium }),
+      this.page.waitForLoadState('networkidle'),
+    ]).catch(() => null);
+    // Extra wait for state propagation
+    await this.page.waitForTimeout(500);
   }
 
   /**

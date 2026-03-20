@@ -204,6 +204,11 @@ test.describe('Global Settings', () => {
     });
 
     test('should update proxy request buffering to off', async () => {
+      // Use API to set a clean state first to avoid contamination from previous test
+      await apiHelper.updateGlobalSettings({
+        proxy_request_buffering: 'on',
+      });
+
       await settingsPage.goto();
       await settingsPage.gotoPerformanceTab();
 
@@ -313,19 +318,6 @@ test.describe('Global Settings', () => {
         // Keys validation might fail
         const hasError = await settingsPage.hasErrorMessage();
         expect(typeof hasError).toBe('boolean');
-      }
-    });
-  });
-
-  test.describe('Reset to Defaults', () => {
-    test.skip('should reset settings to defaults', async () => {
-      await settingsPage.goto();
-
-      if (await settingsPage.resetButton.isVisible()) {
-        await settingsPage.resetToDefaults();
-
-        const hasSuccess = await settingsPage.hasSuccessMessage();
-        expect(hasSuccess).toBeTruthy();
       }
     });
   });

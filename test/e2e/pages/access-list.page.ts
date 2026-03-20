@@ -45,17 +45,21 @@ export class AccessListPage extends BasePage {
 
     // List display
     this.accessLists = page.locator('main .space-y-4, main .grid, main > div').first();
-    this.accessListItems = page.locator('[class*="card"], .bg-white.rounded, .dark\\:bg-slate-800').filter({
-      has: page.locator('text=/acl|access|allow|deny/i'),
+    // Access list table rows - each row has edit/delete buttons; exclude header and empty state rows
+    this.accessListItems = page.locator('main table tbody tr').filter({
+      has: page.locator('td'),
+    }).filter({
+      hasNot: page.locator('td[colspan]'),
     });
-    this.emptyState = page.locator('text=/no.*list|empty|no.*data/i');
+    this.emptyState = page.locator('td[colspan]');
     this.loadingState = page.locator('.animate-spin, .animate-pulse');
 
     // Form modal
     this.modal = page.locator('.fixed.inset-0, [role="dialog"], [class*="modal"]').first();
-    this.nameInput = page.locator('input[name*="name"], input[placeholder*="name"]').first();
-    this.saveButton = page.locator('button').filter({ hasText: /save|submit|create/i }).first();
-    this.cancelButton = page.locator('button').filter({ hasText: /cancel|close/i }).first();
+    // The form's first text input is the name field (inside the modal)
+    this.nameInput = page.locator('.fixed.inset-0 input[type="text"], [role="dialog"] input[type="text"], input[name*="name"], input[placeholder*="name"]').first();
+    this.saveButton = page.locator('.fixed.inset-0 button[type="submit"], [role="dialog"] button[type="submit"]').first();
+    this.cancelButton = page.locator('.fixed.inset-0 button, [role="dialog"] button').filter({ hasText: /cancel|close/i }).first();
 
     // IP management
     this.allowedIpsSection = page.locator('section, div').filter({ hasText: /allowed|whitelist/i }).first();
@@ -109,33 +113,66 @@ export class AccessListPage extends BasePage {
    * Get list by name.
    */
   getListByName(name: string): Locator {
-    return this.page.locator('[class*="card"], .bg-white.rounded, .dark\\:bg-slate-800').filter({
+    return this.page.locator('main table tbody tr').filter({
       hasText: name,
     }).first();
   }
 
   /**
-   * Fill list name.
+   * Fill list name (clears existing value first).
    */
   async fillName(name: string): Promise<void> {
-    await this.nameInput.fill(name);
+    // Use the name input inside the modal's form grid (first text input in the grid-cols-2 row)
+    const nameField = this.page.locator('.fixed.inset-0 .grid.grid-cols-2 input[type="text"]').first();
+    await nameField.clear();
+    await nameField.fill(name);
+  }
+
+  /**
+   * Add an access rule item (the form uses a list of directive+address items).
+   * Each item has a select (allow/deny), an address input, and a description input.
+   */
+  private async addRuleItem(directive: 'allow' | 'deny', ip: string): Promise<void> {
+    // The form uses a space-y-2 container with flex rows containing a select and inputs.
+    // Each row: <div class="flex gap-2 items-start"><select>...<input address>...<input desc>...
+    const ruleRowSelector = '.fixed.inset-0 .flex.gap-2, [role="dialog"] .flex.gap-2';
+    const ruleRows = this.page.locator(ruleRowSelector).filter({
+      has: this.page.locator('select'),
+    });
+
+    // Find the last empty row or add a new one
+    let targetRow = ruleRows.last();
+    const lastAddress = await targetRow.locator('input[type="text"]').first().inputValue().catch(() => '');
+
+    if (lastAddress.trim() !== '') {
+      // All rows are filled, click "add rule" button (text: "+ Add Rule" or "+ 규칙 추가")
+      const addRuleBtn = this.page.locator('.fixed.inset-0 button[type="button"], [role="dialog"] button[type="button"]')
+        .filter({ hasText: /add.*rule|\+|규칙/i }).first();
+      if (await addRuleBtn.isVisible()) {
+        await addRuleBtn.click();
+        await this.page.waitForTimeout(300);
+      }
+      // Re-query after adding
+      targetRow = this.page.locator(ruleRowSelector).filter({
+        has: this.page.locator('select'),
+      }).last();
+    }
+
+    // Set directive
+    const select = targetRow.locator('select').first();
+    await select.selectOption(directive);
+
+    // Set IP address (first text input in the row)
+    const addressInput = targetRow.locator('input[type="text"]').first();
+    await addressInput.fill(ip);
+    await this.page.waitForTimeout(100);
   }
 
   /**
    * Add an allowed IP address.
    */
   async addAllowedIp(ip: string): Promise<void> {
-    // Find the allowed IPs section input
-    const input = this.allowedIpsSection.locator('input[placeholder*="IP"], input').first().or(this.ipInput);
-    await input.fill(ip);
-
-    const addBtn = this.allowedIpsSection.locator('button').filter({ hasText: /add|\+/ }).first().or(this.addAllowedIpButton);
-    if (await addBtn.isVisible()) {
-      await addBtn.click();
-    } else {
-      await input.press('Enter');
-    }
-    await this.page.waitForTimeout(200);
+    await this.addRuleItem('allow', ip);
   }
 
   /**
@@ -151,16 +188,7 @@ export class AccessListPage extends BasePage {
    * Add a denied IP address.
    */
   async addDeniedIp(ip: string): Promise<void> {
-    const input = this.deniedIpsSection.locator('input[placeholder*="IP"], input').first().or(this.ipInput);
-    await input.fill(ip);
-
-    const addBtn = this.deniedIpsSection.locator('button').filter({ hasText: /add|\+/ }).first().or(this.addDeniedIpButton);
-    if (await addBtn.isVisible()) {
-      await addBtn.click();
-    } else {
-      await input.press('Enter');
-    }
-    await this.page.waitForTimeout(200);
+    await this.addRuleItem('deny', ip);
   }
 
   /**
@@ -203,6 +231,10 @@ export class AccessListPage extends BasePage {
       this.modal.waitFor({ state: 'hidden', timeout: TIMEOUTS.long }),
       this.errorMessage.waitFor({ state: 'visible', timeout: TIMEOUTS.long }),
     ]).catch(() => null);
+    // Wait for React Query to refetch the list after modal closes
+    await this.page.waitForLoadState('networkidle');
+    // Extra wait for list to re-render with new data
+    await this.page.waitForTimeout(500);
   }
 
   /**
@@ -217,19 +249,31 @@ export class AccessListPage extends BasePage {
 
   /**
    * Click on list to edit.
+   * The access list uses a table with explicit edit buttons.
    */
   async clickList(name: string): Promise<void> {
     const list = this.getListByName(name);
-    await list.click();
+    const editBtn = list.locator('button').filter({ hasText: /edit/i }).first();
+    if (await editBtn.isVisible()) {
+      await editBtn.click();
+    } else {
+      await list.click();
+    }
     await this.modal.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
   }
 
   /**
    * Delete an access list.
+   * The access list component uses a browser confirm() dialog.
    */
   async deleteList(name: string): Promise<void> {
     const list = this.getListByName(name);
     const deleteBtn = list.locator('button').filter({ hasText: /delete/i }).first();
+
+    // Set up dialog handler for the browser confirm() dialog
+    this.page.once('dialog', async dialog => {
+      await dialog.accept();
+    });
 
     if (await deleteBtn.isVisible()) {
       await deleteBtn.click();
@@ -241,9 +285,7 @@ export class AccessListPage extends BasePage {
       }
     }
 
-    // Confirm deletion
-    const confirmBtn = this.page.locator('button').filter({ hasText: /confirm|yes|delete/i }).last();
-    await confirmBtn.click();
+    await this.page.waitForTimeout(500);
     await this.waitForLoad();
   }
 

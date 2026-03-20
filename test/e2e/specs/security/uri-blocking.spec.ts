@@ -15,12 +15,16 @@ test.describe('URI Blocking', () => {
   });
 
   test.afterEach(async () => {
-    // Cleanup test URI blocks
-    const blocks = await apiHelper.getWafUriBlocks();
-    for (const block of blocks) {
-      if (block.description?.includes('test') || block.pattern.includes('test-e2e')) {
-        await apiHelper.deleteWafUriBlock(block.id);
+    // Cleanup test global URI block rules
+    try {
+      const globalBlock = await apiHelper.getGlobalUriBlock();
+      for (const rule of globalBlock.rules || []) {
+        if (rule.description?.includes('test') || rule.description?.includes('Test') || rule.pattern.includes('test-e2e') || rule.pattern.includes('test-ui')) {
+          await apiHelper.deleteWafUriBlock(rule.id).catch(() => {});
+        }
       }
+    } catch {
+      // Ignore cleanup errors
     }
   });
 
@@ -74,30 +78,38 @@ test.describe('URI Blocking', () => {
 
     test('should create URI block via UI', async ({ page }) => {
       await wafPage.gotoUriBlocks();
+
+      // Click the "Add Rule" button to show the inline form
       await wafPage.addUriBlockButton.click();
+      await page.waitForTimeout(300);
 
-      // Wait for modal
-      await page.waitForSelector('[class*="modal"], [role="dialog"]', {
-        state: 'visible',
-        timeout: TIMEOUTS.medium,
-      });
+      // The inline add form appears inside a bg-slate-50 container with font-mono pattern input
+      const inlineForm = page.locator('.bg-slate-50, .dark\\:bg-slate-700\\/50').filter({
+        has: page.locator('input.font-mono'),
+      }).first();
+      await inlineForm.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
 
-      // Fill form
-      const patternInput = page.locator('input[name*="pattern"], input[placeholder*="pattern"]').first();
-      if (await patternInput.isVisible()) {
-        await patternInput.fill('/test-ui-block/*');
-      }
+      // Fill the pattern input (font-mono text input)
+      const patternInput = inlineForm.locator('input.font-mono').first();
+      await patternInput.fill('/test-ui-block/*');
 
-      const descInput = page.locator('input[name*="description"], textarea').first();
+      // Fill description if visible (non-mono text input in the form)
+      const descInput = inlineForm.locator('input[type="text"]:not(.font-mono)').first();
       if (await descInput.isVisible()) {
         await descInput.fill('Test from UI');
       }
 
-      // Save
-      const saveBtn = page.locator('button').filter({ hasText: /save|create/i }).first();
-      await saveBtn.click();
+      // Click the add button within the inline form (the rose/red colored button)
+      const addBtn = inlineForm.locator('button').filter({ hasText: /add/i }).first();
+      await addBtn.click();
 
-      await page.waitForTimeout(200);
+      // The rule is added to pending changes - now save the global changes
+      await page.waitForTimeout(300);
+      const saveBtn = page.locator('button').filter({ hasText: /save/i }).first();
+      if (await saveBtn.isVisible()) {
+        await saveBtn.click();
+        await page.waitForTimeout(500);
+      }
     });
   });
 
@@ -129,9 +141,9 @@ test.describe('URI Blocking', () => {
       // Delete it
       await apiHelper.deleteWafUriBlock(created.id);
 
-      // Verify deletion
-      const blocks = await apiHelper.getWafUriBlocks();
-      const found = blocks.find(b => b.id === created.id);
+      // Verify deletion via global URI block endpoint
+      const globalBlock = await apiHelper.getGlobalUriBlock();
+      const found = (globalBlock.rules || []).find(r => r.id === created.id);
       expect(found).toBeUndefined();
     });
   });
@@ -190,8 +202,9 @@ test.describe('URI Blocking', () => {
 
       await apiHelper.deleteWafUriBlock(created.id);
 
-      const blocks = await apiHelper.getWafUriBlocks();
-      const found = blocks.find(b => b.id === created.id);
+      // Verify deletion via global URI block endpoint
+      const globalBlock = await apiHelper.getGlobalUriBlock();
+      const found = (globalBlock.rules || []).find(r => r.id === created.id);
       expect(found).toBeUndefined();
     });
   });
@@ -206,17 +219,11 @@ test.describe('URI Block Validation', () => {
   });
 
   test('should validate regex pattern syntax', async () => {
-    try {
-      const blockData = TestDataFactory.createRegexUriBlock({
-        pattern: '[invalid(regex', // Invalid regex
-      });
+    const blockData = TestDataFactory.createRegexUriBlock({
+      pattern: '[invalid(regex', // Invalid regex
+    });
 
-      await apiHelper.createWafUriBlock(blockData);
-      // Should throw error for invalid regex
-    } catch (error) {
-      // Expected to fail
-      expect(error).toBeDefined();
-    }
+    await expect(apiHelper.createWafUriBlock(blockData)).rejects.toThrow(/Invalid regex pattern|Failed to create/);
   });
 
   test('should accept valid regex patterns', async () => {

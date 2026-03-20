@@ -122,10 +122,10 @@ test.describe('DNS Provider Management', () => {
       await expect(dnsProviderPage.modal).toBeVisible();
     });
 
-    test('should update provider name', async () => {
+    test('should update provider name', async ({ page }) => {
       // Create a provider first
       const providerData = TestDataFactory.createCloudflareDnsProvider();
-      const created = await apiHelper.createDnsProvider(providerData);
+      await apiHelper.createDnsProvider(providerData);
 
       await dnsProviderPage.goto();
       await dnsProviderPage.clickProvider(providerData.name);
@@ -135,10 +135,10 @@ test.describe('DNS Provider Management', () => {
       await dnsProviderPage.fillName(newName);
       await dnsProviderPage.save();
 
-      // Verify update
+      // Verify update - wait for the updated name to appear in the table
       await dnsProviderPage.waitForLoad();
-      const exists = await dnsProviderPage.providerExists(newName);
-      expect(exists).toBeTruthy();
+      const updatedRow = dnsProviderPage.getProviderByName(newName);
+      await expect(updatedRow).toBeVisible({ timeout: TIMEOUTS.medium });
     });
   });
 
@@ -163,18 +163,6 @@ test.describe('DNS Provider Management', () => {
   });
 
   test.describe('Connection Test', () => {
-    test.skip('should test connection for valid credentials', async () => {
-      // This test would require valid API credentials
-      await dnsProviderPage.goto();
-      await dnsProviderPage.clickAddProvider();
-      await dnsProviderPage.fillName('test-connection');
-      await dnsProviderPage.fillCloudflareCredentials('valid-token');
-
-      const result = await dnsProviderPage.testConnection();
-      // Skipped because requires real credentials
-      expect(result).toBeDefined();
-    });
-
     test('should show error for invalid credentials', async () => {
       await dnsProviderPage.goto();
       await dnsProviderPage.clickAddProvider();

@@ -15,8 +15,8 @@ export default defineConfig({
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
 
-  // Retry on CI only (increased for flaky tests)
-  retries: process.env.CI ? 2 : 0,
+  // Retry flaky tests (parallel execution can cause timing issues)
+  retries: process.env.CI ? 2 : 1,
 
   // Limit workers to prevent OOM - each Chromium process uses ~200MB+
   // CI: 1 worker for stability, Local: 2 workers (down from 4) to reduce memory pressure
@@ -82,11 +82,12 @@ export default defineConfig({
       testIgnore: /.*\/(login|logout)\.spec\.ts/,
     },
 
-    // Unauthenticated tests (login, etc.) - run serially to avoid rate limiting
+    // Unauthenticated tests (login, etc.) - run serially AFTER setup to avoid rate limiting
     {
       name: 'chromium-no-auth',
       use: { ...devices['Desktop Chrome'] },
       testMatch: /.*\/(login|logout)\.spec\.ts/,
+      dependencies: ['setup'],
       fullyParallel: false,
     },
   ],

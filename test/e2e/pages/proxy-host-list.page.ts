@@ -29,7 +29,8 @@ export class ProxyHostListPage extends BasePage {
     // Page header
     this.pageTitle = page.locator('h1, h2').filter({ hasText: /proxy.*host/i }).first();
     this.addHostButton = page.locator('button').filter({ hasText: /add\s*proxy\s*host/i }).first();
-    this.searchInput = page.locator('input[type="search"], input[placeholder*="search"], input[placeholder*="Search"]');
+    // Search input: type="text" with search icon (pl-9 padding-left for icon), or type="search"
+    this.searchInput = page.locator('input[type="search"], input[type="text"].pl-9, input[type="text"][class*="pl-9"]').first();
     this.filterButton = page.locator('button').filter({ hasText: /filter/i });
 
     // Host list - the main container with host items
@@ -92,7 +93,7 @@ export class ProxyHostListPage extends BasePage {
   async searchHosts(query: string): Promise<void> {
     if (await this.searchInput.isVisible()) {
       await this.searchInput.fill(query);
-      await this.page.waitForTimeout(300); // Debounce
+      await this.page.waitForTimeout(800); // Wait for debounce (UI uses 300ms) + API response
       await this.waitForHostsLoad();
     }
   }
@@ -119,17 +120,28 @@ export class ProxyHostListPage extends BasePage {
 
   /**
    * Click on a host to edit (clicks the edit button in the actions column).
+   * The edit button is an icon-only button with a title attribute set via i18n.
    */
   async clickHost(domain: string): Promise<void> {
     const hostRow = this.getHostByDomain(domain);
-    // Use accessible name to find the Edit button (works with title/aria-label)
-    const editButton = hostRow.getByRole('button', { name: /^Edit$|^수정$/ });
+    await hostRow.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
+
+    // The edit button is the second action button in the row (after test config).
+    // It has a pencil SVG icon and a title attribute ("Edit" in English, "수정" in Korean).
+    const editButton = hostRow.locator('button[title="Edit"], button[title="수정"]').first();
     if (await editButton.isVisible()) {
       await editButton.click();
     } else {
-      // Fallback: try button with title attribute
-      const titleButton = hostRow.locator('button[title="Edit"], button[title="수정"]').first();
-      await titleButton.click();
+      // Fallback: use accessible name matching (title provides accessible name for icon-only buttons)
+      const roleButton = hostRow.getByRole('button', { name: /Edit|수정/ });
+      if (await roleButton.first().isVisible()) {
+        await roleButton.first().click();
+      } else {
+        // Last resort: click the second button in the actions column (edit is second after test)
+        const actionButtons = hostRow.locator('td:last-child button, div.flex.justify-end button');
+        const secondButton = actionButtons.nth(1);
+        await secondButton.click();
+      }
     }
     // Wait for form/modal
     await this.page.waitForSelector('[class*="modal"], [role="dialog"], .fixed.inset-0', {
@@ -167,6 +179,10 @@ export class ProxyHostListPage extends BasePage {
    */
   async deleteHost(domain: string): Promise<void> {
     const hostRow = this.getHostByDomain(domain);
+    await hostRow.waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
+
+    // Delete button is the last action button in the row, with hover:text-red styling.
+    // It has a title attribute "Delete" (en) or "삭제" (ko).
     const deleteBtn = hostRow.locator('button[title="Delete"], button[title="삭제"]').first();
 
     // Set up dialog handler before clicking delete (native confirm dialog)
@@ -174,7 +190,13 @@ export class ProxyHostListPage extends BasePage {
       await dialog.accept();
     });
 
-    await deleteBtn.click();
+    if (await deleteBtn.isVisible()) {
+      await deleteBtn.click();
+    } else {
+      // Fallback: click the last button in the actions area (delete is typically last)
+      const lastBtn = hostRow.locator('td:last-child button, div.flex.justify-end button').last();
+      await lastBtn.click();
+    }
 
     // Wait for host to be removed
     await this.page.waitForTimeout(1000);

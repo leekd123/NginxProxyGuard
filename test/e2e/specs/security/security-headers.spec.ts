@@ -189,16 +189,6 @@ test.describe('Security Headers', () => {
     });
   });
 
-  test.describe('Per-Host Security Headers', () => {
-    test.skip('should configure security headers per proxy host', async () => {
-      // This would require proxy host form with security headers section
-    });
-
-    test.skip('should override global security headers per host', async () => {
-      // This would require proxy host with custom headers
-    });
-  });
-
   test.describe('Save Security Headers', () => {
     test('should save security header configuration', async ({ page }) => {
       await page.goto(ROUTES.settingsSecurityHeaders);

@@ -83,23 +83,6 @@ test.describe('Rate Limiting', () => {
     });
   });
 
-  test.describe('Per-Host Rate Limiting', () => {
-    test.skip('should configure rate limit for specific host', async () => {
-      // This would require proxy host configuration with rate limiting
-    });
-
-    test.skip('should override global rate limit per host', async () => {
-      // This would require proxy host configuration with custom rate limit
-    });
-  });
-
-  test.describe('Rate Limit Headers', () => {
-    test.skip('should include rate limit headers in response', async () => {
-      // This would require actual HTTP request testing
-      // Headers like X-RateLimit-Limit, X-RateLimit-Remaining
-    });
-  });
-
   test.describe('Rate Limit Actions', () => {
     test('should configure rate limit exceeded action', async ({ page }) => {
       await page.goto(ROUTES.settingsRateLimiting);

@@ -78,7 +78,12 @@ export class ProxyHostFormPage {
     this.enabledToggle = page.locator('input[type="checkbox"], button[role="switch"]').first();
 
     // SSL tab fields
-    this.sslEnabledToggle = page.locator('[class*="ssl"] input[type="checkbox"], [class*="ssl"] button[role="switch"]').first();
+    // SSLTab uses a custom button toggle inside a border-2 card with "SSL Enabled" text.
+    // We must NOT match the host ON/OFF toggle at the top of the form, so we scope
+    // to the border-2 container that specifically contains the SSL toggle.
+    this.sslEnabledToggle = page.locator('.border-2').filter({
+      has: page.locator('text=/SSL Enabled|SSL 활성화/'),
+    }).locator('button.rounded-full').first();
     this.http2Toggle = page.locator('input[type="checkbox"], button[role="switch"]').filter({ has: page.locator('text=/http.*2/i') }).first();
     this.http3Toggle = page.locator('input[type="checkbox"], button[role="switch"]').filter({ has: page.locator('text=/http.*3/i') }).first();
     this.forceHttpsToggle = page.locator('input[type="checkbox"], button[role="switch"]').filter({ has: page.locator('text=/force.*https|redirect/i') }).first();
@@ -234,7 +239,8 @@ export class ProxyHostFormPage {
     await this.switchTab('ssl');
     const isEnabled = await this.isSSLEnabled();
     if (isEnabled !== enable) {
-      await this.sslEnabledToggle.click();
+      // Use force:true to bypass overlay interception from modal content div
+      await this.sslEnabledToggle.click({ force: true });
     }
   }
 
@@ -244,7 +250,10 @@ export class ProxyHostFormPage {
   async isSSLEnabled(): Promise<boolean> {
     const toggle = this.sslEnabledToggle;
     if (await toggle.isVisible()) {
-      return await toggle.isChecked();
+      // The SSL toggle is a custom button, not a checkbox.
+      // When enabled, it has bg-green-500 class; when disabled, bg-slate-300.
+      const className = await toggle.getAttribute('class') || '';
+      return className.includes('bg-green');
     }
     return false;
   }

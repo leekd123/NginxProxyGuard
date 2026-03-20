@@ -232,14 +232,7 @@ test.describe('Audit Log Actions Tracking', () => {
 
   test('should log proxy host deletion', async () => {
     const proxyHost = TestDataFactory.createProxyHost();
-    let created;
-    try {
-      created = await apiHelper.createProxyHost(proxyHost);
-    } catch {
-      // Proxy host creation may fail if nginx has stale configs; skip gracefully
-      test.skip();
-      return;
-    }
+    const created = await apiHelper.createProxyHost(proxyHost);
 
     // Delete may intermittently fail with 500 if nginx is busy reloading
     try {

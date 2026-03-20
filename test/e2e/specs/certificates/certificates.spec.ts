@@ -205,20 +205,6 @@ test.describe('Let\'s Encrypt Certificate Request', () => {
     }
   });
 
-  test.skip('should request certificate with DNS provider', async () => {
-    // This test requires a configured DNS provider
-    await certificatesPage.goto();
-    await certificatesPage.clickAddCertificate();
-
-    const testDomain = TestDataFactory.generateDomain('dns-cert-test');
-    await formPage.requestLetsEncryptCertificate({
-      domains: [testDomain],
-      email: TestDataFactory.generateEmail(),
-      // dnsProvider: 'cloudflare', // Requires actual DNS provider
-    });
-
-    // Would need to verify certificate was created
-  });
 });
 
 test.describe('Custom Certificate Upload', () => {

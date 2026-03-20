@@ -79,9 +79,10 @@ test.describe('Proxy Host CRUD', () => {
     // Save changes
     await formPage.save();
 
-    // Verify changes via API
+    // Verify changes via API using domain for reliable lookup
     const hosts = await apiHelper.getProxyHosts();
-    const updatedHost = hosts.find(h => h.id === createdHost.id);
+    const updatedHost = hosts.find(h => h.domain_names?.includes(testDomain));
+    expect(updatedHost).toBeDefined();
     expect(updatedHost?.forward_port).toBe(9090);
   });
 
@@ -93,8 +94,11 @@ test.describe('Proxy Host CRUD', () => {
 
     await listPage.goto();
 
+    // Search for the host to ensure it's visible (may be on different page due to pagination)
+    await listPage.searchHosts(testDomain);
+
     // Verify host exists
-    await expect(listPage.getHostByDomain(testDomain)).toBeVisible();
+    await expect(listPage.getHostByDomain(testDomain)).toBeVisible({ timeout: TIMEOUTS.medium });
 
     // Delete the host
     await listPage.deleteHost(testDomain);

@@ -33,15 +33,14 @@ test.describe('Proxy Host Sync', () => {
     await dashboardPage.syncAllButton.click();
 
     // Should show sync progress modal
-    const syncModal = page.locator('[class*="modal"], [role="dialog"]');
+    const syncModal = page.locator('.fixed.inset-0.backdrop-blur-sm, [class*="modal"], [role="dialog"]');
     await expect(syncModal).toBeVisible({ timeout: TIMEOUTS.medium });
 
     // Wait for sync to complete
     await page.waitForFunction(
       () => {
         const spinner = document.querySelector('[class*="animate-spin"]');
-        const modal = document.querySelector('[class*="modal"], [role="dialog"]');
-        return !spinner || !modal || modal.textContent?.includes('success') || modal.textContent?.includes('complete');
+        return !spinner;
       },
       { timeout: TIMEOUTS.veryLong }
     );
@@ -56,7 +55,7 @@ test.describe('Proxy Host Sync', () => {
     await dashboardPage.syncAllButton.click();
 
     // Wait for sync to complete
-    const syncModal = page.locator('[class*="modal"], [role="dialog"]');
+    const syncModal = page.locator('.fixed.inset-0.backdrop-blur-sm, [class*="modal"], [role="dialog"]');
     await expect(syncModal).toBeVisible();
 
     // Wait for success indicator
@@ -71,7 +70,7 @@ test.describe('Proxy Host Sync', () => {
     await dashboardPage.syncAllButton.click();
 
     // Sync should complete (even if no hosts)
-    const syncModal = page.locator('[class*="modal"], [role="dialog"]');
+    const syncModal = page.locator('.fixed.inset-0.backdrop-blur-sm, [class*="modal"], [role="dialog"]');
     await expect(syncModal).toBeVisible();
 
     // Wait for completion
@@ -98,7 +97,7 @@ test.describe('Proxy Host Sync', () => {
     await listPage.syncAllButton.click();
 
     // Wait for sync to complete
-    await page.waitForSelector('[class*="modal"], [role="dialog"]', { state: 'visible' });
+    await page.waitForSelector('.fixed.inset-0.backdrop-blur-sm, [class*="modal"], [role="dialog"]', { state: 'visible' });
     await page.waitForFunction(
       () => !document.querySelector('[class*="animate-spin"]'),
       { timeout: TIMEOUTS.veryLong }
@@ -115,7 +114,7 @@ test.describe('Proxy Host Sync', () => {
     await dashboardPage.goto();
     await dashboardPage.syncAllButton.click();
 
-    const syncModal = page.locator('[class*="modal"], [role="dialog"]');
+    const syncModal = page.locator('.fixed.inset-0.backdrop-blur-sm, [class*="modal"], [role="dialog"]');
     await expect(syncModal).toBeVisible();
 
     // Wait for sync to complete
@@ -133,7 +132,7 @@ test.describe('Proxy Host Sync', () => {
     await dashboardPage.goto();
     await dashboardPage.syncAllButton.click();
 
-    const syncModal = page.locator('[class*="modal"], [role="dialog"]');
+    const syncModal = page.locator('.fixed.inset-0.backdrop-blur-sm, [class*="modal"], [role="dialog"]');
     await expect(syncModal).toBeVisible();
 
     // Wait for sync to complete
@@ -164,20 +163,3 @@ test.describe('Proxy Host Sync', () => {
   });
 });
 
-test.describe('Sync Error Handling', () => {
-  test.skip('should show error when sync fails', async ({ page, request }) => {
-    // This test would require creating an invalid configuration
-    // that causes nginx test/reload to fail
-    const apiHelper = new APIHelper(request);
-    await apiHelper.login();
-
-    // Create a host with potentially invalid config
-    // (This is hard to test without actually breaking nginx)
-
-    const dashboardPage = new DashboardPage(page);
-    await dashboardPage.goto();
-    await dashboardPage.syncAllButton.click();
-
-    // Check if error is shown when sync fails
-  });
-});

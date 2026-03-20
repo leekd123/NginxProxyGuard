@@ -18,6 +18,10 @@ const RETRY_CONFIG = {
 export class APIHelper {
   private request: APIRequestContext;
   private token: string | null = null;
+  private createdHostIds: string[] = [];
+  private createdRedirectHostIds: string[] = [];
+  private createdDnsProviderIds: string[] = [];
+  private createdAccessListIds: string[] = [];
 
   constructor(request: APIRequestContext) {
     this.request = request;
@@ -112,7 +116,7 @@ export class APIHelper {
    */
   async getProxyHosts(): Promise<ProxyHostData[]> {
     return this.withRetry(async () => {
-      const response = await this.request.get(API_ENDPOINTS.proxyHosts, {
+      const response = await this.request.get(`${API_ENDPOINTS.proxyHosts}?per_page=500`, {
         headers: this.getHeaders(),
       });
 
@@ -122,7 +126,8 @@ export class APIHelper {
 
       const result = await response.json();
       // API returns paginated response: { data: [...], total, page, per_page, total_pages }
-      return result.data || [];
+      // data may be null when no hosts exist
+      return result.data ?? [];
     }, 'getProxyHosts');
   }
 
@@ -140,13 +145,15 @@ export class APIHelper {
       throw new Error(`Failed to create proxy host: ${error.error || response.status()}`);
     }
 
-    return response.json();
+    const host = await response.json();
+    this.createdHostIds.push(host.id);
+    return host;
   }
 
   /**
    * Update a proxy host.
    */
-  async updateProxyHost(id: number, data: Partial<CreateProxyHostData>): Promise<ProxyHostData> {
+  async updateProxyHost(id: string, data: Partial<CreateProxyHostData>): Promise<ProxyHostData> {
     const response = await this.request.put(`${API_ENDPOINTS.proxyHosts}/${id}`, {
       headers: this.getHeaders(),
       data,
@@ -163,7 +170,7 @@ export class APIHelper {
   /**
    * Delete a proxy host.
    */
-  async deleteProxyHost(id: number): Promise<void> {
+  async deleteProxyHost(id: string): Promise<void> {
     const response = await this.request.delete(`${API_ENDPOINTS.proxyHosts}/${id}`, {
       headers: this.getHeaders(),
     });
@@ -219,31 +226,23 @@ export class APIHelper {
   }
 
   /**
-   * Clean up test proxy hosts (by domain pattern).
-   * Errors during cleanup are logged but not thrown, to avoid cascade failures.
+   * Clean up test proxy hosts created by this APIHelper instance.
+   * Only deletes hosts that were created via createProxyHost() to avoid
+   * interfering with parallel test workers.
    */
-  async cleanupTestHosts(pattern: RegExp = /.+\.example\.local$/i): Promise<number> {
-    let hosts: ProxyHostData[];
-    try {
-      hosts = await this.getProxyHosts();
-    } catch {
-      console.warn('cleanupTestHosts: failed to list proxy hosts, skipping cleanup');
-      return 0;
-    }
+  async cleanupTestHosts(_pattern?: RegExp): Promise<number> {
     let deleted = 0;
 
-    for (const host of hosts) {
-      const domains = host.domain_names || [];
-      if (domains.some((d: string) => pattern.test(d))) {
-        try {
-          await this.deleteProxyHost(host.id);
-          deleted++;
-        } catch (error) {
-          console.warn(`cleanupTestHosts: failed to delete host ${host.id}: ${error}`);
-        }
+    // Only delete hosts created by this instance (safe for parallel execution)
+    for (const id of this.createdHostIds) {
+      try {
+        await this.deleteProxyHost(id);
+        deleted++;
+      } catch {
+        // Host may already be deleted or never created successfully
       }
     }
-
+    this.createdHostIds = [];
     return deleted;
   }
 
@@ -309,13 +308,15 @@ export class APIHelper {
       throw new Error(`Failed to create redirect host: ${error.error || response.status()}`);
     }
 
-    return response.json();
+    const host = await response.json();
+    this.createdRedirectHostIds.push(host.id);
+    return host;
   }
 
   /**
    * Update a redirect host.
    */
-  async updateRedirectHost(id: number, data: Partial<CreateRedirectHostData>): Promise<RedirectHostData> {
+  async updateRedirectHost(id: string, data: Partial<CreateRedirectHostData>): Promise<RedirectHostData> {
     const response = await this.request.put(`${API_ENDPOINTS.redirectHosts}/${id}`, {
       headers: this.getHeaders(),
       data,
@@ -332,7 +333,7 @@ export class APIHelper {
   /**
    * Delete a redirect host.
    */
-  async deleteRedirectHost(id: number): Promise<void> {
+  async deleteRedirectHost(id: string): Promise<void> {
     const response = await this.request.delete(`${API_ENDPOINTS.redirectHosts}/${id}`, {
       headers: this.getHeaders(),
     });
@@ -346,27 +347,19 @@ export class APIHelper {
    * Clean up test redirect hosts.
    * Errors during cleanup are logged but not thrown, to avoid cascade failures.
    */
-  async cleanupTestRedirectHosts(pattern: RegExp = /.+\.example\.local$/i): Promise<number> {
-    let hosts: RedirectHostData[];
-    try {
-      hosts = await this.getRedirectHosts();
-    } catch {
-      console.warn('cleanupTestRedirectHosts: failed to list redirect hosts, skipping cleanup');
-      return 0;
-    }
+  async cleanupTestRedirectHosts(_pattern?: RegExp): Promise<number> {
     let deleted = 0;
 
-    for (const host of hosts) {
-      const domains = host.domain_names || [];
-      if (domains.some((d: string) => pattern.test(d))) {
-        try {
-          await this.deleteRedirectHost(host.id);
-          deleted++;
-        } catch (error) {
-          console.warn(`cleanupTestRedirectHosts: failed to delete host ${host.id}: ${error}`);
-        }
+    // Only delete redirect hosts created by this instance (safe for parallel execution)
+    for (const id of this.createdRedirectHostIds) {
+      try {
+        await this.deleteRedirectHost(id);
+        deleted++;
+      } catch {
+        // Host may already be deleted
       }
     }
+    this.createdRedirectHostIds = [];
 
     return deleted;
   }
@@ -412,13 +405,15 @@ export class APIHelper {
       throw new Error(`Failed to create DNS provider: ${error.error || response.status()}`);
     }
 
-    return response.json();
+    const provider = await response.json();
+    this.createdDnsProviderIds.push(provider.id);
+    return provider;
   }
 
   /**
    * Update a DNS provider.
    */
-  async updateDnsProvider(id: number, data: Partial<CreateDnsProviderData>): Promise<DnsProviderData> {
+  async updateDnsProvider(id: string, data: Partial<CreateDnsProviderData>): Promise<DnsProviderData> {
     const response = await this.request.put(`${API_ENDPOINTS.dnsProviders}/${id}`, {
       headers: this.getHeaders(),
       data,
@@ -435,7 +430,7 @@ export class APIHelper {
   /**
    * Delete a DNS provider.
    */
-  async deleteDnsProvider(id: number): Promise<void> {
+  async deleteDnsProvider(id: string): Promise<void> {
     const response = await this.request.delete(`${API_ENDPOINTS.dnsProviders}/${id}`, {
       headers: this.getHeaders(),
     });
@@ -449,27 +444,19 @@ export class APIHelper {
    * Clean up test DNS providers.
    * Errors during cleanup are logged but not thrown, to avoid cascade failures.
    */
-  async cleanupTestDnsProviders(pattern: RegExp = /test-.*-e2e|e2e-test|cf-provider-|duckdns-provider-|dynu-provider-|manual-ui-|updated-|should-not-be-saved|test-invalid|test-connection/i): Promise<number> {
-    let providers: DnsProviderData[];
-    try {
-      providers = await this.getDnsProviders();
-    } catch {
-      console.warn('cleanupTestDnsProviders: failed to list DNS providers, skipping cleanup');
-      return 0;
-    }
+  async cleanupTestDnsProviders(_pattern?: RegExp): Promise<number> {
     let deleted = 0;
 
-    for (const provider of providers) {
-      if (pattern.test(provider.name)) {
-        try {
-          await this.deleteDnsProvider(provider.id);
-          deleted++;
-        } catch (error) {
-          console.warn(`cleanupTestDnsProviders: failed to delete provider ${provider.id}: ${error}`);
-        }
+    // Only delete providers created by this instance (safe for parallel execution)
+    for (const id of this.createdDnsProviderIds) {
+      try {
+        await this.deleteDnsProvider(id);
+        deleted++;
+      } catch {
+        // Provider may already be deleted
       }
     }
-
+    this.createdDnsProviderIds = [];
     return deleted;
   }
 
@@ -544,13 +531,15 @@ export class APIHelper {
       throw new Error(`Failed to create access list: ${error.error || response.status()}`);
     }
 
-    return response.json();
+    const list = await response.json();
+    this.createdAccessListIds.push(list.id);
+    return list;
   }
 
   /**
    * Update an access list.
    */
-  async updateAccessList(id: number, data: Partial<CreateAccessListData>): Promise<AccessListData> {
+  async updateAccessList(id: string, data: Partial<CreateAccessListData>): Promise<AccessListData> {
     const apiData = this.convertAccessListData(data);
     const response = await this.request.put(`${API_ENDPOINTS.accessLists}/${id}`, {
       headers: this.getHeaders(),
@@ -568,7 +557,7 @@ export class APIHelper {
   /**
    * Delete an access list.
    */
-  async deleteAccessList(id: number): Promise<void> {
+  async deleteAccessList(id: string): Promise<void> {
     const response = await this.request.delete(`${API_ENDPOINTS.accessLists}/${id}`, {
       headers: this.getHeaders(),
     });
@@ -582,27 +571,19 @@ export class APIHelper {
    * Clean up test access lists.
    * Errors during cleanup are logged but not thrown, to avoid cascade failures.
    */
-  async cleanupTestAccessLists(pattern: RegExp = /test-acl-|e2e-acl/i): Promise<number> {
-    let lists: AccessListData[];
-    try {
-      lists = await this.getAccessLists();
-    } catch {
-      console.warn('cleanupTestAccessLists: failed to list access lists, skipping cleanup');
-      return 0;
-    }
+  async cleanupTestAccessLists(_pattern?: RegExp): Promise<number> {
     let deleted = 0;
 
-    for (const list of lists) {
-      if (pattern.test(list.name)) {
-        try {
-          await this.deleteAccessList(list.id);
-          deleted++;
-        } catch (error) {
-          console.warn(`cleanupTestAccessLists: failed to delete list ${list.id}: ${error}`);
-        }
+    // Only delete lists created by this instance (safe for parallel execution)
+    for (const id of this.createdAccessListIds) {
+      try {
+        await this.deleteAccessList(id);
+        deleted++;
+      } catch {
+        // List may already be deleted
       }
     }
-
+    this.createdAccessListIds = [];
     return deleted;
   }
 
@@ -628,7 +609,7 @@ export class APIHelper {
   /**
    * Delete a certificate.
    */
-  async deleteCertificate(id: number): Promise<void> {
+  async deleteCertificate(id: string): Promise<void> {
     const response = await this.request.delete(`${API_ENDPOINTS.certificates}/${id}`, {
       headers: this.getHeaders(),
     });
@@ -641,7 +622,7 @@ export class APIHelper {
   /**
    * Renew a certificate.
    */
-  async renewCertificate(id: number): Promise<CertificateData> {
+  async renewCertificate(id: string): Promise<CertificateData> {
     const response = await this.request.post(`${API_ENDPOINTS.certificates}/${id}/renew`, {
       headers: this.getHeaders(),
     });
@@ -691,7 +672,7 @@ export class APIHelper {
   /**
    * Revoke an API token.
    */
-  async revokeApiToken(id: number): Promise<void> {
+  async revokeApiToken(id: string): Promise<void> {
     const response = await this.request.delete(`${API_ENDPOINTS.apiTokens}/${id}`, {
       headers: this.getHeaders(),
     });
@@ -743,7 +724,10 @@ export class APIHelper {
       throw new Error(`Failed to get backups: ${response.status()}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    // API returns paginated response: { data: [...], total, ... }
+    // data may be null when no backups exist
+    return result.data ?? [];
   }
 
   /**
@@ -765,7 +749,7 @@ export class APIHelper {
   /**
    * Delete a backup.
    */
-  async deleteBackup(id: number): Promise<void> {
+  async deleteBackup(id: string): Promise<void> {
     const response = await this.request.delete(`${API_ENDPOINTS.settingsBackups}/${id}`, {
       headers: this.getHeaders(),
     });
@@ -855,7 +839,10 @@ export class APIHelper {
       throw new Error(`Failed to get WAF banned IPs: ${response.status()}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    // API returns paginated response: { data: [...], total, ... }
+    // data may be null when no banned IPs exist
+    return result.data ?? [];
   }
 
   /**
@@ -864,7 +851,7 @@ export class APIHelper {
   async banIp(ip: string, reason?: string): Promise<void> {
     const response = await this.request.post(API_ENDPOINTS.wafBannedIps, {
       headers: this.getHeaders(),
-      data: { ip, reason },
+      data: { ip_address: ip, reason },
     });
 
     if (!response.ok()) {
@@ -874,10 +861,10 @@ export class APIHelper {
   }
 
   /**
-   * Unban an IP address.
+   * Unban an IP address by database ID.
    */
-  async unbanIp(ip: string): Promise<void> {
-    const response = await this.request.delete(`${API_ENDPOINTS.wafBannedIps}/${encodeURIComponent(ip)}`, {
+  async unbanIp(id: string): Promise<void> {
+    const response = await this.request.delete(`${API_ENDPOINTS.wafBannedIps}/${id}`, {
       headers: this.getHeaders(),
     });
 
@@ -887,7 +874,7 @@ export class APIHelper {
   }
 
   /**
-   * Get WAF URI blocks.
+   * Get WAF URI blocks (host-level).
    */
   async getWafUriBlocks(): Promise<WafUriBlockData[]> {
     return this.withRetry(async () => {
@@ -906,12 +893,37 @@ export class APIHelper {
   }
 
   /**
-   * Create a URI block rule.
+   * Get global URI block settings (includes all global rules).
+   */
+  async getGlobalUriBlock(): Promise<{ rules: Array<{ id: string; pattern: string; match_type: string; description?: string; enabled: boolean }> }> {
+    const response = await this.request.get('/api/v1/global-uri-block', {
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok()) {
+      return { rules: [] };
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Create a global URI block rule.
+   * Uses POST /api/v1/global-uri-block/rules endpoint.
+   * The API returns the full GlobalURIBlock object, so we extract the matching rule.
    */
   async createWafUriBlock(data: CreateWafUriBlockData): Promise<WafUriBlockData> {
-    const response = await this.request.post(API_ENDPOINTS.wafUriBlocks, {
+    // Translate is_regex convenience field to match_type
+    const matchType = data.match_type || (data.is_regex ? 'regex' : 'prefix');
+    const apiData = {
+      pattern: data.pattern,
+      match_type: matchType,
+      description: data.description,
+      enabled: data.enabled,
+    };
+    const response = await this.request.post('/api/v1/global-uri-block/rules', {
       headers: this.getHeaders(),
-      data,
+      data: apiData,
     });
 
     if (!response.ok()) {
@@ -919,14 +931,29 @@ export class APIHelper {
       throw new Error(`Failed to create URI block: ${error.error || response.status()}`);
     }
 
-    return response.json();
+    const block = await response.json();
+    // API returns the full GlobalURIBlock with all rules; extract the newly added rule
+    const rules: Array<{ id: string; pattern: string; match_type: string; description?: string; enabled: boolean }> = block.rules || [];
+    const addedRule = rules.find(r => r.pattern === data.pattern) || rules[rules.length - 1];
+    if (!addedRule) {
+      throw new Error('Failed to find created URI block rule in response');
+    }
+    return {
+      id: addedRule.id,
+      pattern: addedRule.pattern,
+      is_regex: addedRule.match_type === 'regex',
+      description: addedRule.description,
+      enabled: addedRule.enabled,
+      created_at: block.created_at || '',
+    };
   }
 
   /**
-   * Delete a URI block rule.
+   * Delete a global URI block rule.
+   * Uses DELETE /api/v1/global-uri-block/rules/:ruleId endpoint.
    */
-  async deleteWafUriBlock(id: number): Promise<void> {
-    const response = await this.request.delete(`${API_ENDPOINTS.wafUriBlocks}/${id}`, {
+  async deleteWafUriBlock(id: string): Promise<void> {
+    const response = await this.request.delete(`/api/v1/global-uri-block/rules/${id}`, {
       headers: this.getHeaders(),
     });
 
@@ -937,8 +964,9 @@ export class APIHelper {
 
   /**
    * Get WAF exploit rules.
+   * Backend returns { categories: [...], total_rules, global_exclusions }.
    */
-  async getWafExploitRules(): Promise<WafExploitRuleData[]> {
+  async getWafExploitRules(): Promise<WafExploitRulesResponse> {
     const response = await this.request.get(API_ENDPOINTS.wafExploitRules, {
       headers: this.getHeaders(),
     });
@@ -947,16 +975,28 @@ export class APIHelper {
       throw new Error(`Failed to get WAF exploit rules: ${response.status()}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    // API returns { categories: [...], total_rules, global_exclusions }
+    // Normalize to always have categories array
+    if (!result.categories) {
+      return { categories: Array.isArray(result) ? result : [], total_rules: 0 };
+    }
+    return result;
   }
 
   /**
-   * Test a WAF payload.
+   * Test a WAF attack type.
+   * Valid attack_type values: sql_injection, sql_injection_union, xss_script, xss_event,
+   * path_traversal, path_traversal_encoded, command_injection, command_injection_pipe,
+   * scanner_sqlmap, scanner_nikto, rce_php, protocol_attack
    */
-  async testWafPayload(payload: string): Promise<WafTestResult> {
+  async testWafPayload(attackType: string, targetUrl?: string): Promise<WafTestResult> {
     const response = await this.request.post(API_ENDPOINTS.wafTest, {
       headers: this.getHeaders(),
-      data: { payload },
+      data: {
+        target_url: targetUrl || 'http://localhost',
+        attack_type: attackType,
+      },
     });
 
     if (!response.ok()) {
@@ -1018,21 +1058,20 @@ export class APIHelper {
 
 // Type definitions
 export interface ProxyHostData {
-  id: number;
+  id: string;
   domain_names: string[];
   forward_scheme: string;
   forward_host: string;
   forward_port: number;
   enabled: boolean;
   ssl_enabled: boolean;
-  http2_enabled: boolean;
-  http3_enabled: boolean;
+  ssl_http2: boolean;
+  ssl_http3: boolean;
   waf_enabled: boolean;
   waf_mode: string;
-  bot_filter_enabled: boolean;
-  geoip_enabled: boolean;
   created_at: string;
   updated_at: string;
+  [key: string]: unknown; // allow additional fields
 }
 
 export interface CreateProxyHostData {
@@ -1042,26 +1081,25 @@ export interface CreateProxyHostData {
   forward_port: number;
   enabled?: boolean;
   ssl_enabled?: boolean;
-  http2_enabled?: boolean;
-  http3_enabled?: boolean;
+  ssl_http2?: boolean;
+  ssl_http3?: boolean;
   waf_enabled?: boolean;
   waf_mode?: string;
-  bot_filter_enabled?: boolean;
-  geoip_enabled?: boolean;
+  [key: string]: unknown; // allow additional fields
 }
 
 export interface SyncResult {
   total_hosts: number;
   success_count: number;
   failed_count: number;
-  hosts: Array<{ id: number; domain: string; success: boolean; error?: string }>;
+  hosts: Array<{ id: string; domain: string; success: boolean; error?: string }>;
   test_success: boolean;
   test_error?: string;
   reload_success: boolean;
 }
 
 export interface CertificateData {
-  id: number;
+  id: string;
   name: string;
   domains: string[];
   expires_at: string;
@@ -1076,7 +1114,7 @@ export interface HealthData {
 
 // Redirect Host Types
 export interface RedirectHostData {
-  id: number;
+  id: string;
   domain_names: string[];
   forward_domain_name: string;
   redirect_code: number;
@@ -1098,7 +1136,7 @@ export interface CreateRedirectHostData {
 
 // DNS Provider Types
 export interface DnsProviderData {
-  id: number;
+  id: string;
   name: string;
   type: string;
   credentials: Record<string, string>;
@@ -1124,7 +1162,7 @@ export interface AccessListItemData {
 }
 
 export interface AccessListData {
-  id: number;
+  id: string;
   name: string;
   description?: string;
   satisfy_any?: boolean;
@@ -1148,13 +1186,13 @@ export interface CreateAccessListData {
 // Certificate Request Type
 export interface RequestCertificateData {
   domains: string[];
-  dns_provider_id?: number;
+  dns_provider_id?: string;
   email?: string;
 }
 
 // API Token Types
 export interface ApiTokenData {
-  id: number;
+  id: string;
   name: string;
   permissions: string[];
   last_used_at?: string;
@@ -1170,7 +1208,7 @@ export interface CreateApiTokenData {
 
 // Backup Types
 export interface BackupData {
-  id: number;
+  id: string;
   filename: string;
   size: number;
   created_at: string;
@@ -1178,7 +1216,7 @@ export interface BackupData {
 
 // Account Types
 export interface AccountData {
-  id: number;
+  id: string;
   username: string;
   email?: string;
   two_factor_enabled: boolean;
@@ -1205,14 +1243,20 @@ export interface GlobalSettingsData {
 
 // WAF Types
 export interface WafBannedIpData {
-  ip: string;
+  id: string;
+  ip_address: string;
+  proxy_host_id?: string;
   reason?: string;
+  fail_count: number;
   banned_at: string;
   expires_at?: string;
+  is_permanent: boolean;
+  is_auto_banned: boolean;
+  created_at: string;
 }
 
 export interface WafUriBlockData {
-  id: number;
+  id: string;
   pattern: string;
   is_regex: boolean;
   description?: string;
@@ -1222,37 +1266,56 @@ export interface WafUriBlockData {
 
 export interface CreateWafUriBlockData {
   pattern: string;
-  is_regex?: boolean;
+  match_type?: 'exact' | 'prefix' | 'regex';
+  is_regex?: boolean;  // Convenience alias: when true, sets match_type to 'regex'
   description?: string;
   enabled?: boolean;
 }
 
 export interface WafExploitRuleData {
-  id: number;
+  id: string;
   name: string;
   pattern: string;
   enabled: boolean;
   category: string;
+  globally_disabled?: boolean;
+}
+
+export interface WafExploitRuleCategoryData {
+  id: string;
+  name: string;
+  description: string;
+  rule_count: number;
+  rules: WafExploitRuleData[];
+}
+
+export interface WafExploitRulesResponse {
+  categories: WafExploitRuleCategoryData[];
+  total_rules: number;
+  global_exclusions?: Array<{ id: string; rule_id: string }>;
 }
 
 export interface WafTestResult {
+  attack_type: string;
+  test_url: string;
+  status_code: number;
   blocked: boolean;
-  matched_rules: string[];
-  details?: string;
+  response_time_ms: number;
+  description: string;
 }
 
 // Log Types
 export interface LogQueryParams {
   page?: number;
   perPage?: number;
-  hostId?: number;
+  hostId?: string;
   startDate?: string;
   endDate?: string;
 }
 
 export interface LogEntry {
-  id: number;
-  host_id: number;
+  id: string;
+  host_id: string;
   remote_addr: string;
   request_uri: string;
   status: number;
@@ -1261,9 +1324,9 @@ export interface LogEntry {
 }
 
 export interface AuditLogEntry {
-  id: number;
+  id: string;
   username: string;
-  user_id?: number;
+  user_id?: string;
   action: string;
   action_label?: string;
   resource_type: string;

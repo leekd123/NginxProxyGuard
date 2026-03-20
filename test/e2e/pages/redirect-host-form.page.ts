@@ -41,20 +41,20 @@ export class RedirectHostFormPage {
     this.saveButton = page.locator('button').filter({ hasText: /save|submit|create|update/i }).first();
     this.cancelButton = page.locator('button').filter({ hasText: /cancel|close/i }).first();
 
-    // Domain fields
-    this.domainInput = page.locator('input[placeholder*="domain"], input[name*="domain"]').first();
+    // Domain fields - RedirectHostManager uses a textarea for domain input, not an input
+    this.domainInput = page.locator('textarea, input[placeholder*="domain"], input[name*="domain"]').first();
     this.addDomainButton = page.locator('button').filter({ hasText: /add|\+/ }).first();
     this.domainChips = page.locator('[class*="chip"], [class*="tag"], .bg-slate-100');
 
     // Redirect configuration
-    this.forwardDomainInput = page.locator('input[placeholder*="target"], input[placeholder*="redirect"], input[name*="forward"]').first();
-    this.redirectCodeSelect = page.locator('select[name*="redirect_code"], select[name*="code"], [role="combobox"]').filter({
-      has: page.locator('option:has-text("301"), option:has-text("302")'),
+    this.forwardDomainInput = page.locator('input[placeholder*="target"], input[placeholder*="redirect"], input[name*="forward"], input[placeholder*="example.com"]').first();
+    this.redirectCodeSelect = page.locator('select').filter({
+      has: page.locator('option:has-text("301")'),
     }).first();
     this.preservePathToggle = page.locator('input[type="checkbox"], button[role="switch"]').filter({
-      has: page.locator('text=/preserve.*path|keep.*path/i'),
+      has: page.locator('text=/preserve.*path|keep.*path|원본.*경로/i'),
     }).first().or(
-      page.locator('label').filter({ hasText: /preserve.*path|keep.*path/i }).locator('input, button[role="switch"]')
+      page.locator('label').filter({ hasText: /preserve.*path|keep.*path|원본.*경로/i }).locator('input, button[role="switch"]')
     );
     this.enabledToggle = page.locator('input[type="checkbox"], button[role="switch"]').filter({
       has: page.locator('text=/enabled|active/i'),
@@ -70,7 +70,7 @@ export class RedirectHostFormPage {
 
     // Status messages
     this.successMessage = page.locator('text=/success|saved|created/i');
-    this.errorMessage = page.locator('.text-red-500, .text-red-600, [class*="error"]');
+    this.errorMessage = page.locator('.text-red-500, .text-red-600, .text-red-700, [class*="error"], .bg-red-50');
   }
 
   /**
@@ -91,11 +91,19 @@ export class RedirectHostFormPage {
    * Fill domain name.
    */
   async fillDomain(domain: string): Promise<void> {
-    await this.domainInput.fill(domain);
-    if (await this.addDomainButton.isVisible()) {
-      await this.addDomainButton.click();
+    const tagName = await this.domainInput.evaluate(el => el.tagName.toLowerCase());
+    if (tagName === 'textarea') {
+      // Redirect host form uses a textarea for domain names (one per line)
+      const current = await this.domainInput.inputValue();
+      const newValue = current ? `${current}\n${domain}` : domain;
+      await this.domainInput.fill(newValue);
     } else {
-      await this.domainInput.press('Enter');
+      await this.domainInput.fill(domain);
+      if (await this.addDomainButton.isVisible()) {
+        await this.addDomainButton.click();
+      } else {
+        await this.domainInput.press('Enter');
+      }
     }
   }
 
@@ -129,7 +137,8 @@ export class RedirectHostFormPage {
    * Toggle preserve path option.
    */
   async togglePreservePath(enable: boolean): Promise<void> {
-    const toggle = this.page.locator('label').filter({ hasText: /preserve.*path|keep.*path/i })
+    // "Preserve original path" (en) / "원본 경로 유지" (ko)
+    const toggle = this.page.locator('label').filter({ hasText: /preserve.*path|keep.*path|원본.*경로/i })
       .locator('input[type="checkbox"], button[role="switch"]').first();
 
     if (await toggle.isVisible()) {
